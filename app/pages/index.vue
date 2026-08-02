@@ -55,8 +55,7 @@
               <h3 class="display text-2xl">Martin André</h3>
               <p class="eyebrow mt-1 text-[color:var(--color-cobalt)]">Data & intelligence</p>
               <p class="mt-3 leading-relaxed">
-                Affine son expertise data au contact des enjeux d'un grand groupe bancaire (BNP
-                Paribas) : modélisation, scoring et analytics au service de décisions concrètes.
+                Affine son expertise data au contact des enjeux d'un grand groupe bancaire : modélisation, scoring et analytics au service de décisions concrètes.
               </p>
               <a
                 href="https://www.linkedin.com/in/martin-andr%C3%A9-851963215/"
