@@ -1,13 +1,13 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-ink: #0e1420;
-  --color-ink-soft: #273043;
-  --color-paper: #f6f5f1;
-  --color-paper-dim: #eceae3;
-  --color-cobalt: #2743ee;
+  --color-fg: #eee2c8;
+  --color-fg-soft: #a89b7d;
+  --color-bg: #060606;
+  --color-bg-raised: #0e0e0e;
+  --color-cobalt: #4d6bff;
   --color-signal: #f5a524;
-  --color-line: #d8d5cc;
+  --color-line: rgba(238, 226, 200, 0.14);
   --font-display: 'Archivo', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
 }
@@ -16,16 +16,38 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: var(--font-display);
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--color-bg);
+  color: var(--color-fg);
 }
 
 .display {
   font-family: var(--font-display);
   font-stretch: 118%;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 0.95;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.shine {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-fg) 40%,
+    #fff 50%,
+    var(--color-fg) 60%
+  );
+  background-size: 240% 100%;
+  background-position: 100% 0;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: shine 7s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0%, 20% { background-position: 140% 0; }
+  50%, 70% { background-position: -40% 0; }
+  100% { background-position: -40% 0; }
 }
 
 .eyebrow {
@@ -33,6 +55,13 @@ body {
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.coords {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--color-fg-soft);
 }
 
 .reveal {
@@ -45,6 +74,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .reveal { transition: none !important; opacity: 1 !important; transform: none !important; }
+  .shine { animation: none; background: none; color: var(--color-fg); }
 }
 
 :focus-visible {
