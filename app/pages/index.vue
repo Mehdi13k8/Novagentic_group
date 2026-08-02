@@ -131,9 +131,123 @@
         </div>
       </div>
     </section>
+
+    <section id="contact" class="border-t border-[color:var(--color-line)] px-6 py-24">
+      <div class="mx-auto max-w-3xl">
+        <p class="eyebrow reveal text-[color:var(--color-cobalt)]">Parlons-en</p>
+        <h2 class="display reveal mt-3 text-4xl" style="transition-delay: 0.08s">Un projet, une question ?</h2>
+        <p class="reveal mt-4 max-w-2xl leading-relaxed text-[color:var(--color-fg-soft)]" style="transition-delay: 0.16s">
+          Décrivez-nous votre contexte, on revient vers vous rapidement.
+        </p>
+
+        <form class="reveal mt-12 grid gap-6" style="transition-delay: 0.2s" @submit.prevent="submitContact">
+          <!-- honeypot, hidden from real users -->
+          <div class="hidden" aria-hidden="true">
+            <label for="website">Website</label>
+            <input id="website" v-model="form.website" type="text" name="website" tabindex="-1" autocomplete="off">
+          </div>
+
+          <div class="grid gap-6 sm:grid-cols-2">
+            <div>
+              <label for="name" class="eyebrow block text-[color:var(--color-fg-soft)]">Nom *</label>
+              <input
+                id="name"
+                v-model="form.name"
+                type="text"
+                name="name"
+                required
+                class="mt-2 w-full border-b border-[color:var(--color-line)] bg-transparent py-2 outline-none transition-colors focus:border-[color:var(--color-cobalt)]"
+              >
+            </div>
+            <div>
+              <label for="email" class="eyebrow block text-[color:var(--color-fg-soft)]">Email *</label>
+              <input
+                id="email"
+                v-model="form.email"
+                type="email"
+                name="email"
+                required
+                class="mt-2 w-full border-b border-[color:var(--color-line)] bg-transparent py-2 outline-none transition-colors focus:border-[color:var(--color-cobalt)]"
+              >
+            </div>
+          </div>
+
+          <div>
+            <label for="company" class="eyebrow block text-[color:var(--color-fg-soft)]">Société</label>
+            <input
+              id="company"
+              v-model="form.company"
+              type="text"
+              name="company"
+              class="mt-2 w-full border-b border-[color:var(--color-line)] bg-transparent py-2 outline-none transition-colors focus:border-[color:var(--color-cobalt)]"
+            >
+          </div>
+
+          <div>
+            <label for="message" class="eyebrow block text-[color:var(--color-fg-soft)]">Message *</label>
+            <textarea
+              id="message"
+              v-model="form.message"
+              name="message"
+              rows="5"
+              required
+              class="mt-2 w-full resize-none border-b border-[color:var(--color-line)] bg-transparent py-2 leading-relaxed outline-none transition-colors focus:border-[color:var(--color-cobalt)]"
+            />
+          </div>
+
+          <div class="flex items-center gap-4">
+            <button
+              type="submit"
+              :disabled="status === 'sending'"
+              class="eyebrow border border-[color:var(--color-fg)] px-6 py-3 transition-colors hover:bg-[color:var(--color-fg)] hover:text-[color:var(--color-bg)] disabled:opacity-50"
+            >
+              {{ status === 'sending' ? 'Envoi…' : 'Envoyer' }}
+            </button>
+            <p v-if="status === 'success'" class="coords text-[color:var(--color-cobalt)]">
+              Message envoyé, merci !
+            </p>
+            <p v-if="status === 'error'" class="coords text-[color:var(--color-signal)]">
+              {{ errorMessage }}
+            </p>
+          </div>
+        </form>
+      </div>
+    </section>
   </main>
 </template>
 
 <script setup lang="ts">
 useScrollReveal()
+
+const form = reactive({
+  name: '',
+  email: '',
+  company: '',
+  message: '',
+  website: '', // honeypot
+})
+
+const status = ref<'idle' | 'sending' | 'success' | 'error'>('idle')
+const errorMessage = ref('')
+
+async function submitContact() {
+  status.value = 'sending'
+  errorMessage.value = ''
+
+  try {
+    await $fetch('/api/contact', {
+      method: 'POST',
+      body: form,
+    })
+    status.value = 'success'
+    form.name = ''
+    form.email = ''
+    form.company = ''
+    form.message = ''
+  }
+  catch {
+    status.value = 'error'
+    errorMessage.value = "Une erreur est survenue, réessayez ou écrivez-nous directement sur LinkedIn."
+  }
+}
 </script>

@@ -7,6 +7,12 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
   },
+  runtimeConfig: {
+    acsConnectionString: '',
+    acsSenderAddress: 'DoNotReply@novagentic.fr',
+    contactTo: 'contact@novagentic.fr',
+    contactCc: 'andremartin719@gmail.com,mehdi.rhoulam@outlook.fr',
+  },
   app: {
     head: {
       title: 'Novagentic',

@@ -1,6 +1,6 @@
 import { _ as _plugin_vue_export_helper_default, u as useHead$1, a as useRouter, e as encodeRoutePath, r as resolveRouteObject, n as navigateTo, b as useRuntimeConfig, c as useNuxtApp, d as nuxtLinkDefaults } from '../virtual/entry.mjs';
 import { useSSRContext, mergeProps, withCtx, createTextVNode, toDisplayString, defineComponent, shallowRef, h, resolveComponent, computed, unref } from 'vue';
-import { l as hasProtocol, f as joinURL, q as parseQuery, o as isScriptProtocol, t as withTrailingSlash, v as withoutTrailingSlash } from '../nitro/nitro.mjs';
+import { n as hasProtocol, i as joinURL, v as parseQuery, t as isScriptProtocol, x as withTrailingSlash, y as withoutTrailingSlash } from '../nitro/nitro.mjs';
 import { ssrRenderAttrs, ssrInterpolate, ssrRenderComponent } from 'vue/server-renderer';
 import 'nostics';
 import 'nostics/formatters/ansi';

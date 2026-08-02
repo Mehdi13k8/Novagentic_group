@@ -1,7 +1,7 @@
 import process from 'node:process';globalThis._importMeta_=globalThis._importMeta_||{url:"file:///_entry.js",env:process.env};import { defineProdDiagnostics } from 'nostics';
 import { ansiFormatter } from 'nostics/formatters/ansi';
 import { getCurrentScope, ref, watchEffect, getCurrentInstance, onBeforeUnmount, onDeactivated, onActivated, createApp, provide, onErrorCaptured, onServerPrefetch, unref, createVNode, resolveDynamicComponent, shallowReactive, reactive, effectScope, hasInjectionContext, inject, defineAsyncComponent, mergeProps, toRef, shallowRef, isReadonly, defineComponent, h, useSSRContext, isRef, isShallow, isReactive, toRaw, isVNode, createCommentVNode, Suspense, Fragment } from 'vue';
-import { c as createError, $ as $fetch, l as hasProtocol, f as joinURL, w as withQuery, s as sanitizeStatusCode, p as parseURL, e as encodePath, m as decodePath, n as defu, o as isScriptProtocol } from '../nitro/nitro.mjs';
+import { c as createError, $ as $fetch, n as hasProtocol, i as joinURL, w as withQuery, s as sanitizeStatusCode, p as parseURL, e as encodePath, o as decodePath, q as defu, t as isScriptProtocol } from '../nitro/nitro.mjs';
 import { i as injectHead$1, V as VueResolver, b as baseURL, h as headSymbol } from '../routes/renderer.mjs';
 import { createMemoryHistory, createRouter, START_LOCATION, RouterView } from 'vue-router';
 import { ssrRenderSuspense, ssrRenderComponent, ssrRenderVNode } from 'vue/server-renderer';
@@ -900,7 +900,7 @@ var namedMiddleware = {};
 var virtual_nuxt_node_modules_2F_cache_2Fnuxt_2F_nuxt_2Froutes_default = [{
 	name: "index",
 	path: "/",
-	component: () => import('../build/pages-BGlNS1Xi.mjs')
+	component: () => import('../build/pages-j2C_5zU8.mjs')
 }];
 //#endregion
 //#region node_modules/nuxt/dist/pages/runtime/plugins/router.js

@@ -9,6 +9,14 @@ import { RuntimeConfig as UserRuntimeConfig, PublicRuntimeConfig as UserPublicRu
 
       cdnURL: string,
    },
+
+   acsConnectionString: string,
+
+   acsSenderAddress: string,
+
+   contactTo: string,
+
+   contactCc: string,
   }
   interface SharedPublicRuntimeConfig {
 

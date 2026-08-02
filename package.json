@@ -7,9 +7,14 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "push:env:dry-run": "bash scripts/push-app-settings.sh --dry-run",
+    "push:env": "bash scripts/push-app-settings.sh",
+    "pull:env:dry-run": "bash scripts/push-app-settings.sh --pull --dry-run",
+    "pull:env": "bash scripts/push-app-settings.sh --pull"
   },
   "dependencies": {
+    "@azure/communication-email": "^1.1.0",
     "nuxt": "^4.0.0",
     "vue": "^3.5.0",
     "vue-router": "^4.5.0"

@@ -7,6 +7,7 @@ import { parentPort, threadId } from 'node:worker_threads';
 import { escapeHtml } from 'file:///home/mehdi/Novagentic_group/node_modules/@vue/shared/dist/shared.cjs.js';
 import viteNodeEntry_mjs from 'file:///home/mehdi/Novagentic_group/node_modules/@nuxt/vite-builder/dist/vite-node-entry.mjs';
 import { viteNodeFetch } from 'file:///home/mehdi/Novagentic_group/node_modules/@nuxt/vite-builder/dist/vite-node.mjs';
+import { EmailClient } from 'file:///home/mehdi/Novagentic_group/node_modules/@azure/communication-email/dist/esm/index.js';
 import { parseURL, withoutBase, joinURL, getQuery, withQuery, withTrailingSlash, decodePath, withLeadingSlash, withoutTrailingSlash, encodePath, joinRelativeURL } from 'file:///home/mehdi/Novagentic_group/node_modules/ufo/dist/index.mjs';
 import destr, { destr as destr$1 } from 'file:///home/mehdi/Novagentic_group/node_modules/destr/dist/index.mjs';
 import { createHooks } from 'file:///home/mehdi/Novagentic_group/node_modules/nitropack/node_modules/hookable/dist/index.mjs';
@@ -652,7 +653,11 @@ const _inlineRuntimeConfig = {
       }
     }
   },
-  "public": {}
+  "public": {},
+  "acsConnectionString": "",
+  "acsSenderAddress": "DoNotReply@novagentic.fr",
+  "contactTo": "contact@novagentic.fr",
+  "contactCc": "andremartin719@gmail.com,mehdi.rhoulam@outlook.fr"
 };
 const envOptions = {
   prefix: "NITRO_",
@@ -2767,10 +2772,12 @@ async function getIslandContext(event) {
 	};
 }
 
+const _lazy_mKv8X2 = () => Promise.resolve().then(function () { return contact_post$1; });
 const _lazy_1MPFx4 = () => Promise.resolve().then(function () { return renderer; });
 
 const handlers = [
   { route: '', handler: _5zN7C5, lazy: false, middleware: true, method: undefined },
+  { route: '/api/contact', handler: _lazy_mKv8X2, lazy: true, middleware: false, method: "post" },
   { route: '/__nuxt_error', handler: _lazy_1MPFx4, lazy: true, middleware: false, method: undefined },
   { route: '/__nuxt_island/**', handler: handler$1, lazy: false, middleware: false, method: undefined },
   { route: '/**', handler: _lazy_1MPFx4, lazy: true, middleware: false, method: undefined }
@@ -3124,6 +3131,56 @@ const styles = {};
 const styles$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
   __proto__: null,
   default: styles
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const contact_post = defineEventHandler(async (event) => {
+  var _a, _b, _c, _d;
+  const body = await readBody(event);
+  if (body.website) {
+    return { ok: true };
+  }
+  const name = (_a = body.name) == null ? void 0 : _a.trim();
+  const email = (_b = body.email) == null ? void 0 : _b.trim();
+  const company = (_c = body.company) == null ? void 0 : _c.trim();
+  const message = (_d = body.message) == null ? void 0 : _d.trim();
+  if (!name || !email || !message) {
+    throw createError({ statusCode: 400, statusMessage: "Champs manquants." });
+  }
+  if (!EMAIL_RE.test(email)) {
+    throw createError({ statusCode: 400, statusMessage: "Adresse email invalide." });
+  }
+  const config = useRuntimeConfig();
+  if (!config.acsConnectionString || !config.acsSenderAddress) {
+    throw createError({ statusCode: 500, statusMessage: "Envoi indisponible pour le moment." });
+  }
+  const client = new EmailClient(config.acsConnectionString);
+  const cc = config.contactCc ? config.contactCc.split(",").map((s) => s.trim()).filter(Boolean).map((address) => ({ address })) : void 0;
+  const poller = await client.beginSend({
+    senderAddress: config.acsSenderAddress,
+    content: {
+      subject: `Nouveau message de ${name} \u2014 novagentic.fr`,
+      plainText: [
+        `Nom : ${name}`,
+        `Email : ${email}`,
+        company ? `Soci\xE9t\xE9 : ${company}` : null,
+        "",
+        message
+      ].filter(Boolean).join("\n")
+    },
+    recipients: {
+      to: [{ address: config.contactTo }],
+      cc
+    },
+    replyTo: [{ address: email, displayName: name }]
+  });
+  await poller.pollUntilDone();
+  return { ok: true };
+});
+
+const contact_post$1 = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: contact_post
 }, Symbol.toStringTag, { value: 'Module' }));
 
 //#region src/runtime/utils/renderer/payload.ts
