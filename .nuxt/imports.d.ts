@@ -34,4 +34,8 @@ export { setInterval } from '#app/compat/interval';
 export { definePageMeta, PageMeta } from '#app/composables/pages';
 export { defineLazyHydrationComponent } from '#app/composables/lazy-hydration';
 export { useScrollReveal } from '../app/composables/useScrollReveal';
+export { queryCollection, queryCollectionSearchSections, queryCollectionNavigation, queryCollectionItemSurroundings, useSearchCollection } from '../node_modules/@nuxt/content/dist/runtime/client';
 export { useNuxtDevTools } from '../node_modules/@nuxt/devtools/dist/runtime/use-nuxt-devtools';
+export { flatUnwrap as unwrapSlot } from '../node_modules/@nuxtjs/mdc/dist/runtime/utils/node';
+export { parseMarkdown } from '../node_modules/@nuxtjs/mdc/dist/runtime/parser';
+export { stringifyMarkdown } from '../node_modules/@nuxtjs/mdc/dist/runtime/stringify';

@@ -22,6 +22,9 @@
       "vite/client": [
         "../node_modules/vite/client"
       ],
+      "@nuxtjs/mdc": [
+        "../node_modules/@nuxtjs/mdc"
+      ],
       "nitropack/types": [
         "../node_modules/nitropack/types"
       ],
@@ -45,6 +48,12 @@
       ],
       "crossws": [
         "../node_modules/crossws"
+      ],
+      "#content/components": [
+        "./content/components.ts"
+      ],
+      "#content/manifest": [
+        "./content/manifest.ts"
       ],
       "~": [
         "../app"
@@ -99,6 +108,15 @@
       ],
       "#imports": [
         "./imports"
+      ],
+      "#mdc-configs": [
+        "./mdc-configs.mjs"
+      ],
+      "#mdc-highlighter": [
+        "./mdc-highlighter.mjs"
+      ],
+      "#mdc-imports": [
+        "./mdc-imports.mjs"
       ],
       "#app-manifest": [
         "./manifest/meta/dev.json"
