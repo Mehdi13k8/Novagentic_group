@@ -2,6 +2,7 @@ node_modules
 .nuxt
 .nuxt.*
 .output
+.data
 .env
 .env.*
 !.env.example

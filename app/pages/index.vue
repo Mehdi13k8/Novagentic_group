@@ -1,18 +1,6 @@
 <template>
   <main class="min-h-screen">
-    <header class="fixed inset-x-0 top-0 z-50 border-b border-[color:var(--color-line)] bg-[color:var(--color-bg)]/80 backdrop-blur">
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <a href="#" class="flex items-center gap-3">
-          <img src="/favicon.svg" alt="" class="h-6 w-6" aria-hidden="true">
-          <span class="eyebrow tracking-[0.2em]">Novagentic</span>
-        </a>
-        <nav class="hidden gap-8 sm:flex">
-          <a href="#fondateurs" class="eyebrow text-[color:var(--color-fg-soft)] transition-colors hover:text-[color:var(--color-cobalt)]">Fondateurs</a>
-          <a href="#experience" class="eyebrow text-[color:var(--color-fg-soft)] transition-colors hover:text-[color:var(--color-cobalt)]">Expérience</a>
-          <a href="#contact" class="eyebrow text-[color:var(--color-fg-soft)] transition-colors hover:text-[color:var(--color-cobalt)]">Contact</a>
-        </nav>
-      </div>
-    </header>
+    <SiteHeader />
 
     <section class="flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
       <h1 class="display shine reveal text-6xl">NOVAGENTIC</h1>
