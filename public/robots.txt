@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://novagentic.fr/sitemap.xml
