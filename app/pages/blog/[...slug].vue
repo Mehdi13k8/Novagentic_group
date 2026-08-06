@@ -61,10 +61,59 @@ if (!page.value) {
   throw createError({ statusCode: 404, statusMessage: 'Article introuvable' })
 }
 
+const siteUrl = 'https://novagentic.fr'
+const canonicalUrl = `${siteUrl}${route.path}`
+const ogImage = computed(() =>
+  page.value?.image ? `${siteUrl}${page.value.image}` : `${siteUrl}/og-image.png`,
+)
+
 useHead({
   title: () => `${page.value?.title} — Novagentic`,
   meta: [
-    { name: 'description', content: page.value?.description },
+    { name: 'description', content: () => page.value?.description },
+    { property: 'og:type', content: 'article' },
+    { property: 'og:url', content: canonicalUrl },
+    { property: 'og:title', content: () => page.value?.title },
+    { property: 'og:description', content: () => page.value?.description },
+    { property: 'og:image', content: ogImage },
+    { property: 'og:image:alt', content: () => page.value?.imageAlt || page.value?.title },
+    { property: 'article:published_time', content: () => page.value?.date },
+    { name: 'twitter:title', content: () => page.value?.title },
+    { name: 'twitter:description', content: () => page.value?.description },
+    { name: 'twitter:image', content: ogImage },
+  ],
+  link: [
+    { rel: 'canonical', href: canonicalUrl },
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: () => JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        'headline': page.value?.title,
+        'description': page.value?.description,
+        'image': ogImage.value,
+        'datePublished': page.value?.date,
+        'author': {
+          '@type': 'Organization',
+          'name': 'Novagentic',
+          'url': siteUrl,
+        },
+        'publisher': {
+          '@type': 'Organization',
+          'name': 'Novagentic',
+          'logo': {
+            '@type': 'ImageObject',
+            'url': `${siteUrl}/icon-512.png`,
+          },
+        },
+        'mainEntityOfPage': {
+          '@type': 'WebPage',
+          '@id': canonicalUrl,
+        },
+      }),
+    },
   ],
 })
 
