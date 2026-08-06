@@ -7,7 +7,8 @@
         <p class="eyebrow reveal text-[color:var(--color-cobalt)]">Journal</p>
         <h1 class="display reveal mt-3 text-5xl" style="transition-delay: 0.08s">Blog</h1>
         <p class="reveal mt-4 max-w-2xl leading-relaxed text-[color:var(--color-fg-soft)]" style="transition-delay: 0.16s">
-          Notes d'ingénierie, retours d'expérience data et automatisation — écrits par l'équipe Novagentic.
+          Ce qu'on note pendant qu'on construit : pipelines data, automatisations,
+          et les décisions techniques qu'on aurait prises autrement.
         </p>
       </div>
     </section>
@@ -15,7 +16,7 @@
     <section class="px-6 py-16">
       <div class="mx-auto max-w-3xl divide-y divide-[color:var(--color-line)]">
         <p v-if="!posts?.length" class="coords py-8 text-[color:var(--color-fg-soft)]">
-          Aucun article publié pour l'instant.
+          Rien ici pour l'instant. Le premier article arrive bientôt.
         </p>
 
         <NuxtLink
@@ -25,7 +26,7 @@
           class="group reveal block py-10 first:pt-0"
         >
           <p class="coords text-[color:var(--color-fg-soft)]">
-            {{ formatDate(post.date) }}<span v-if="post.readingTime"> — {{ post.readingTime }}</span>
+            {{ formatDate(post.date) }}<span v-if="post.readingTime"> · {{ post.readingTime }}</span>
           </p>
           <h2 class="display mt-3 text-2xl normal-case tracking-tight transition-colors duration-300 group-hover:text-[color:var(--color-cobalt)] sm:text-3xl">
             {{ post.title }}
@@ -43,7 +44,7 @@
 useScrollReveal()
 
 useHead({
-  title: 'Blog — Novagentic',
+  title: 'Blog · Novagentic',
 })
 
 const { data: posts } = await useAsyncData('blog-list', () =>

@@ -78,7 +78,7 @@
         <p class="eyebrow reveal text-[color:var(--color-cobalt)]">Ce que nous savons construire</p>
         <h2 class="display reveal mt-3 text-4xl" style="transition-delay: 0.08s">Notre terrain de jeu : l'exigence</h2>
         <p class="reveal mt-4 max-w-2xl leading-relaxed text-[color:var(--color-fg-soft)]" style="transition-delay: 0.16s">
-          Avant Novagentic, notre équipe a fait ses armes là où l'erreur n'est pas permise —
+          Avant Novagentic, notre équipe a fait ses armes là où l'erreur n'est pas permise ·
           industrie, finance, logistique, banque. Quatre exemples de ce que ça donne une fois
           transposé à vos projets.
         </p>
