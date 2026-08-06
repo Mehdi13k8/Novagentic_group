@@ -5,11 +5,17 @@
         <img src="/favicon.svg" alt="" class="h-6 w-6" aria-hidden="true">
         <span class="eyebrow tracking-[0.2em]">Novagentic</span>
       </NuxtLink>
-      <nav class="hidden gap-8 sm:flex">
+      <nav class="hidden items-center gap-8 sm:flex">
         <a href="/#fondateurs" class="eyebrow text-[color:var(--color-fg-soft)] transition-colors hover:text-[color:var(--color-cobalt)]">Fondateurs</a>
         <a href="/#experience" class="eyebrow text-[color:var(--color-fg-soft)] transition-colors hover:text-[color:var(--color-cobalt)]">Expérience</a>
+        <a href="/#offres" class="eyebrow text-[color:var(--color-fg-soft)] transition-colors hover:text-[color:var(--color-cobalt)]">Ce qu'on construit</a>
         <NuxtLink to="/blog" class="eyebrow text-[color:var(--color-fg-soft)] transition-colors hover:text-[color:var(--color-cobalt)]">Blog</NuxtLink>
-        <a href="/#contact" class="eyebrow text-[color:var(--color-fg-soft)] transition-colors hover:text-[color:var(--color-cobalt)]">Contact</a>
+        <a
+          href="/#contact"
+          class="eyebrow rounded-md bg-[color:var(--color-fg)] px-4 py-2 text-[color:var(--color-bg)] transition-opacity hover:opacity-90"
+        >
+          Parler de votre projet
+        </a>
       </nav>
     </div>
   </header>
