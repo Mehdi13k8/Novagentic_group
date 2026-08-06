@@ -83,8 +83,13 @@ declare global {
   const lazyEventHandler: typeof import('../../node_modules/h3/dist/index').lazyEventHandler
   const nitroPlugin: typeof import('../../node_modules/nitropack/dist/runtime/internal/plugin').nitroPlugin
   const parseCookies: typeof import('../../node_modules/h3/dist/index').parseCookies
+  const parseMarkdown: typeof import('../../node_modules/@nuxtjs/mdc/dist/runtime/parser').parseMarkdown
   const promisifyNodeListener: typeof import('../../node_modules/h3/dist/index').promisifyNodeListener
   const proxyRequest: typeof import('../../node_modules/h3/dist/index').proxyRequest
+  const queryCollection: typeof import('../../node_modules/@nuxt/content/dist/runtime/nitro').queryCollection
+  const queryCollectionItemSurroundings: typeof import('../../node_modules/@nuxt/content/dist/runtime/nitro').queryCollectionItemSurroundings
+  const queryCollectionNavigation: typeof import('../../node_modules/@nuxt/content/dist/runtime/nitro').queryCollectionNavigation
+  const queryCollectionSearchSections: typeof import('../../node_modules/@nuxt/content/dist/runtime/nitro').queryCollectionSearchSections
   const readBody: typeof import('../../node_modules/h3/dist/index').readBody
   const readFormData: typeof import('../../node_modules/h3/dist/index').readFormData
   const readMultipartFormData: typeof import('../../node_modules/h3/dist/index').readMultipartFormData
@@ -111,6 +116,7 @@ declare global {
   const setResponseHeaders: typeof import('../../node_modules/h3/dist/index').setResponseHeaders
   const setResponseStatus: typeof import('../../node_modules/h3/dist/index').setResponseStatus
   const splitCookiesString: typeof import('../../node_modules/h3/dist/index').splitCookiesString
+  const stringifyMarkdown: typeof import('../../node_modules/@nuxtjs/mdc/dist/runtime/stringify').stringifyMarkdown
   const toEventHandler: typeof import('../../node_modules/h3/dist/index').toEventHandler
   const toNodeListener: typeof import('../../node_modules/h3/dist/index').toNodeListener
   const toPlainHandler: typeof import('../../node_modules/h3/dist/index').toPlainHandler
@@ -145,6 +151,9 @@ export { getRouteRules } from 'nitropack/runtime/internal/route-rules';
 export { useEvent } from 'nitropack/runtime/internal/context';
 export { defineTask, runTask } from 'nitropack/runtime/internal/task';
 export { defineNitroErrorHandler } from 'nitropack/runtime/internal/error/utils';
-export { buildAssetsURL as __buildAssetsURL, publicAssetsURL as __publicAssetsURL } from '/home/mehdi/Novagentic_group/node_modules/@nuxt/nitro-server/dist/runtime/utils/paths';
-export { defineAppConfig } from '/home/mehdi/Novagentic_group/node_modules/@nuxt/nitro-server/dist/runtime/utils/config';
-export { useAppConfig } from '/home/mehdi/Novagentic_group/node_modules/@nuxt/nitro-server/dist/runtime/utils/app-config';
+export { buildAssetsURL as __buildAssetsURL, publicAssetsURL as __publicAssetsURL } from 'C:/Users/andre/mesFichiersLocaux/novagentic/site_web/Novagentic_group/node_modules/@nuxt/nitro-server/dist/runtime/utils/paths';
+export { defineAppConfig } from 'C:/Users/andre/mesFichiersLocaux/novagentic/site_web/Novagentic_group/node_modules/@nuxt/nitro-server/dist/runtime/utils/config';
+export { useAppConfig } from 'C:/Users/andre/mesFichiersLocaux/novagentic/site_web/Novagentic_group/node_modules/@nuxt/nitro-server/dist/runtime/utils/app-config';
+export { queryCollection, queryCollectionSearchSections, queryCollectionNavigation, queryCollectionItemSurroundings } from 'C:/Users/andre/mesFichiersLocaux/novagentic/site_web/Novagentic_group/node_modules/@nuxt/content/dist/runtime/nitro';
+export { parseMarkdown } from 'C:/Users/andre/mesFichiersLocaux/novagentic/site_web/Novagentic_group/node_modules/@nuxtjs/mdc/dist/runtime/parser';
+export { stringifyMarkdown } from 'C:/Users/andre/mesFichiersLocaux/novagentic/site_web/Novagentic_group/node_modules/@nuxtjs/mdc/dist/runtime/stringify';

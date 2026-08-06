@@ -81,3 +81,93 @@ body {
   outline: 2px solid var(--color-cobalt);
   outline-offset: 3px;
 }
+
+/* Blog — variante éditoriale, pensée pour la lecture longue */
+.blog-prose {
+  max-width: 68ch;
+  margin-inline: auto;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  color: var(--color-fg);
+}
+
+.blog-prose > :first-child { margin-top: 0; }
+
+.blog-prose p { margin-top: 1.5em; }
+
+.blog-prose h2 {
+  margin-top: 2.6em;
+  margin-bottom: 0.6em;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 108%;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  font-size: 1.6rem;
+}
+
+.blog-prose h3 {
+  margin-top: 2em;
+  margin-bottom: 0.5em;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 108%;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  font-size: 1.25rem;
+}
+
+.blog-prose a {
+  color: var(--color-cobalt);
+  text-underline-offset: 3px;
+}
+
+.blog-prose ul,
+.blog-prose ol {
+  margin-top: 1.5em;
+  padding-left: 1.4em;
+}
+
+.blog-prose li { margin-top: 0.5em; }
+.blog-prose li::marker { color: var(--color-signal); }
+
+.blog-prose blockquote {
+  margin-top: 2em;
+  border-left: 2px solid var(--color-signal);
+  padding-left: 1.2em;
+  font-style: italic;
+  color: var(--color-fg-soft);
+}
+
+.blog-prose code {
+  font-family: var(--font-mono);
+  background: var(--color-bg-raised);
+  padding: 0.15em 0.4em;
+  border-radius: 0.25em;
+  font-size: 0.85em;
+}
+
+.blog-prose pre {
+  margin-top: 1.5em;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-line);
+  padding: 1.2em;
+  border-radius: 0.5em;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+
+.blog-prose pre code { background: none; padding: 0; }
+
+.blog-prose img {
+  margin-top: 2em;
+  border-radius: 0.5em;
+  border: 1px solid var(--color-line);
+}
+
+.blog-prose hr {
+  margin: 2.5em 0;
+  border-color: var(--color-line);
+}
