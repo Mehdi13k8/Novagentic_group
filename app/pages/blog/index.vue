@@ -43,8 +43,23 @@
 <script setup lang="ts">
 useScrollReveal()
 
+const title = 'Blog — Novagentic'
+const description = "Ce qu'on note pendant qu'on construit : pipelines data, automatisations, et les décisions techniques qu'on aurait prises autrement."
+const url = 'https://novagentic.fr/blog'
+
 useHead({
-  title: 'Blog · Novagentic',
+  title,
+  meta: [
+    { name: 'description', content: description },
+    { property: 'og:url', content: url },
+    { property: 'og:title', content: title },
+    { property: 'og:description', content: description },
+    { name: 'twitter:title', content: title },
+    { name: 'twitter:description', content: description },
+  ],
+  link: [
+    { rel: 'canonical', href: url },
+  ],
 })
 
 const { data: posts } = await useAsyncData('blog-list', () =>
