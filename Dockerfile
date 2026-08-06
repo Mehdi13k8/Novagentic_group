@@ -12,7 +12,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NITRO_PORT=3000
 ENV NITRO_HOST=0.0.0.0
-COPY --from=build /app/.output ./.output
+COPY --from=build --chown=node:node /app/.output ./.output
 EXPOSE 3000
 USER node
 CMD ["node", ".output/server/index.mjs"]
