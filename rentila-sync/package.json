@@ -9,7 +9,11 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "probe:rentila": "node --env-file=.env scripts/probe-rentila.mjs",
-    "stripe:setup": "node --env-file=.env scripts/stripe-setup.mjs"
+    "stripe:setup": "node --env-file=.env scripts/stripe-setup.mjs",
+    "push:env:dry-run": "AZURE_WEBAPP_NAME=rentila-sync HEALTH_URL=https://rentila-sync.azurewebsites.net/api/health ENV_FILE=$PWD/.env bash ../scripts/push-app-settings.sh --dry-run",
+    "push:env": "AZURE_WEBAPP_NAME=rentila-sync HEALTH_URL=https://rentila-sync.azurewebsites.net/api/health ENV_FILE=$PWD/.env bash ../scripts/push-app-settings.sh",
+    "pull:env:dry-run": "AZURE_WEBAPP_NAME=rentila-sync ENV_FILE=$PWD/.env bash ../scripts/push-app-settings.sh --pull --dry-run",
+    "pull:env": "AZURE_WEBAPP_NAME=rentila-sync ENV_FILE=$PWD/.env bash ../scripts/push-app-settings.sh --pull"
   },
   "dependencies": {
     "mongoose": "^8.9.0",

@@ -1,9 +1,14 @@
 <script setup lang="ts">
-// No auth/org UI yet — see server/models/User.ts. This page is a status
-// check for the scaffold, not the real dashboard from the plan's step 6
-// (org signup, connect Rentila creds, connect bank, matched/unmatched
-// list). Build that next once auth exists.
+// No real dashboard yet (see plan's step 6: connect Rentila, connect bank,
+// matched/unmatched list) — this is a status page plus the auth entry
+// points, enough to actually test signup/login/reset locally.
 const { data: health } = await useFetch('/api/health')
+const { data: me, refresh: refreshMe } = await useFetch('/api/auth/me')
+
+async function logout() {
+  await $fetch('/api/auth/logout', { method: 'POST' })
+  await refreshMe()
+}
 </script>
 
 <template>
@@ -12,7 +17,7 @@ const { data: health } = await useFetch('/api/health')
       <h1 class="text-2xl font-semibold">Rentila Sync</h1>
       <p class="mt-2 text-sm text-neutral-500">
         Reconciles bank transactions against Rentila rent payments. Work in progress —
-        no dashboard or auth yet, this page is a scaffold status check.
+        no real dashboard yet, this page is a scaffold status check.
       </p>
     </div>
 
@@ -29,6 +34,20 @@ const { data: health } = await useFetch('/api/health')
           {{ health?.mongo ?? 'unknown' }}
         </span>
       </p>
+    </div>
+
+    <div class="rounded-lg border border-neutral-200 p-4 text-sm">
+      <template v-if="me?.user">
+        <p>Logged in as <span class="font-medium">{{ me.user.email }}</span></p>
+        <button class="mt-2 underline" @click="logout">Log out</button>
+      </template>
+      <template v-else>
+        <p class="mb-2">Not logged in.</p>
+        <div class="flex gap-4">
+          <NuxtLink to="/login" class="underline">Log in</NuxtLink>
+          <NuxtLink to="/signup" class="underline">Sign up</NuxtLink>
+        </div>
+      </template>
     </div>
   </main>
 </template>

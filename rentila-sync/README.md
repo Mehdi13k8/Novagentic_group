@@ -6,12 +6,16 @@ landlord doesn't have to manually check whether a tenant's transfer landed.
 
 Lives inside the `Novagentic_group` repo (this folder) but is a separate,
 unrelated product from the Novagentic marketing site one level up — own
-`package.json`, own Dockerfile, own deploy workflow
-(`../.github/workflows/rentila-sync-deploy.yml`, scoped to only trigger on
-changes under this folder), meant for its own Azure Web App. Sharing the
+`package.json`, own Dockerfile, meant for its own Azure Web App. Sharing the
 repo and its GitHub Actions secrets store was a deliberate choice; sharing
 the actual Nuxt app/runtime with the marketing site was not — run this
 folder's `npm install`/`npm run dev` independently of the repo root's.
+
+Both apps share one workflow file, `../.github/workflows/azure-webapps-node.yml`
+— a `changes` job diffs the push against its previous commit and only runs
+this app's build+deploy jobs when something under `rentila-sync/**` actually
+changed (and vice versa for the marketing site), so editing one never
+redeploys the other.
 
 Full design context, decisions, and reasoning live in the plan doc this was
 built from: `~/.claude/plans/reading-the-context-of-wild-ripple.md`.
@@ -31,23 +35,37 @@ What's real and working:
 - The reconciliation engine (matching + atomic claim + notify).
 - A scheduled sweep task as backstop for missed webhooks.
 - **Auth** (`nuxt-auth-utils`): email+password signup/login/logout,
-  encrypted session cookie. Signup auto-creates one `Organization` per user
-  (`server/api/auth/*.ts`).
+  encrypted session cookie, password reset (`/forgot-password` →
+  `/reset-password`, token hashed + 1h-expiring server-side). Signup
+  auto-creates one `Organization` per user (`server/api/auth/*.ts`). Pages
+  at `/signup`, `/login`, `/forgot-password`, `/reset-password` — this is
+  actually clickable in a browser now, not just raw API routes. Exercised
+  end-to-end against the real Atlas cluster: signup, login, logout, wrong-
+  password rejection, full reset flow (wrong token rejected, correct token
+  accepted, old password invalidated afterward).
 - **Billing** (Stripe): a Checkout Session flow
   (`server/api/billing/checkout.post.ts`) and a signature-verified webhook
   (`server/api/webhooks/stripe.post.ts`) that syncs `Organization.plan` /
   `Organization.stripe.subscriptionStatus` from `checkout.session.completed`
   and `customer.subscription.*` events. `npm run stripe:setup` idempotently
-  creates the €3/month Product+Price.
+  creates the €3/month Product+Price — done in **both** live mode
+  (`prod_V1qb0Q5gBeMbkO` / `price_1U1mtpK0wkU7HcSrWtqDGCzL`) and test mode
+  (`prod_V1rCdXT1vwL1Pd` / `price_1U1nUMK0wkU7HcSrPhtDmBWE`). Checkout was
+  exercised for real against test mode — it returns a genuine
+  `checkout.stripe.com` session URL.
 
 What's stubbed / missing:
-- **The real dashboard.** `app/pages/index.vue` is just a health-check
-  status page, not the "connect Rentila, connect bank, view matches" UI from
-  the plan's step 6. There's no "connect Rentila"/"connect bank" form yet
-  either — `Organization.rentila`/`.bridge` fields have to be populated by
-  hand (Mongo shell or a seed script) until that UI exists.
-- **Email delivery.** `notifyLandlord()` in `server/utils/reconcile.ts`
-  currently just logs — no actual email goes out yet.
+- **The real dashboard.** Auth pages exist now (see above), but there's
+  still no "connect Rentila, connect bank, view matches" UI from the plan's
+  step 6 — `Organization.rentila`/`.bridge` fields have to be populated by
+  hand (Mongo shell or a seed script) until that exists.
+- **Email delivery.** `notifyLandlord()` in `server/utils/reconcile.ts` and
+  the password-reset link in `server/api/auth/forgot-password.post.ts` both
+  currently just log to the server console instead of sending anything —
+  functionally usable in dev (copy the logged link/URL), but no real email
+  provider is wired up yet. Novagentic's own `@azure/communication-email`
+  setup (`server/api/contact.post.ts` at the repo root) is a candidate to
+  reuse, but isn't connected here.
 - **No route actually gates on `Organization.plan`.** The Stripe plumbing
   updates the field correctly, but nothing in the reconciliation/API routes
   checks it yet and blocks a `trial`/`canceled` org from using the product —
@@ -172,16 +190,37 @@ Generate `NUXT_ENCRYPTION_KEY` and `NUXT_SESSION_PASSWORD` with `openssl rand
 `npm run stripe:setup` creates the €3/month Product+Price (idempotent, safe
 to re-run) and prints the price id to put in `NUXT_STRIPE_PRICE_ID`.
 
+### Syncing `.env` with Azure (once the Web App exists)
+
+Reuses Novagentic's own `scripts/push-app-settings.sh` rather than a copy —
+that script now takes `AZURE_WEBAPP_NAME`/`AZURE_RESOURCE_GROUP`/`HEALTH_URL`/
+`ENV_FILE` overrides so it isn't Novagentic-specific anymore. Wired up here as:
+
+```bash
+npm run push:env:dry-run   # preview which keys would be pushed (names only)
+npm run push:env           # push this folder's .env -> Azure Application Settings
+npm run pull:env:dry-run   # preview what --pull would change
+npm run pull:env           # pull Azure Application Settings -> this folder's .env
+```
+
+Targets the `rentila-sync` Web App name and this folder's own `.env` (not
+the repo root's, which is Novagentic's) — doesn't do anything useful until
+that Web App exists (see "Deployment" below).
+
 ## Deployment
 
-Not deployed yet. `../.github/workflows/rentila-sync-deploy.yml` (repo root
+Not deployed yet. `../.github/workflows/azure-webapps-node.yml` (repo root
 — GitHub only reads workflows from the top-level `.github/workflows/`, not
-per-folder ones) mirrors Novagentic's own pipeline (GHCR + OIDC-to-Azure +
-`azure/webapps-deploy`), scoped with `paths: ["rentila-sync/**"]` so it only
-triggers on changes here, with its own image (`ghcr.io/mehdi13k8/rentila-sync`)
-and `AZURE_WEBAPP_NAME: rentila-sync` — still a **TODO placeholder**, no such
-Azure Web App exists yet. **Do not** point it at Novagentic's existing Web
-App — this is a separate product and needs its own.
+per-folder ones) builds+deploys both this app and Novagentic from one file;
+a `changes` job path-diffs each push so only the app(s) that actually
+changed get rebuilt. This app's job uses its own image
+(`ghcr.io/mehdi13k8/rentila-sync`) and `AZURE_WEBAPP_NAME: rentila-sync` —
+still a **TODO placeholder**, no such Azure Web App exists yet (the deploy
+job will fail at `azure/webapps-deploy` until it does). **Do not** point it
+at Novagentic's existing Web App — this is a separate product and needs its
+own; it defaults to the same `Novagentic_group` Azure *resource group*
+though (via `push-app-settings.sh`'s own default), which is a reasonable
+place for it to live unless you'd rather split resource groups too.
 
 Secrets live in this same GitHub repo's Actions secrets (shared store,
 `gh secret set <NAME>` from the repo root) — see "Getting started" for which
