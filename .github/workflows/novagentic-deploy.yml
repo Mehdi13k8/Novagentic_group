@@ -71,10 +71,9 @@ jobs:
           NUXT_CONTACT_CC: ${{ secrets.NUXT_CONTACT_CC }}
         run: bash scripts/push-app-settings.sh --skip-health-check
 
-      - name: Apply compose config + restart shared Web App
+      - name: Update novagentic sitecontainer
         run: |
-          az webapp config container set \
-            --name Novagentic --resource-group Novagentic_group \
-            --multicontainer-config-type COMPOSE \
-            --multicontainer-config-file azure-compose.yml
-          az webapp restart --name Novagentic --resource-group Novagentic_group
+          SUB_ID=$(az account show --query id -o tsv)
+          az rest --method PUT \
+            --url "https://management.azure.com/subscriptions/$SUB_ID/resourceGroups/Novagentic_group/providers/Microsoft.Web/sites/Novagentic/sitecontainers/novagentic?api-version=2023-12-01" \
+            --body '{"properties":{"image":"ghcr.io/mehdi13k8/novagentic:${{ github.sha }}","isMain":false,"targetPort":3000}}'

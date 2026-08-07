@@ -10,9 +10,12 @@ RUN npm run build
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-ENV NITRO_PORT=3000
+# 3001, not 3000: Azure "sitecontainers" (sidecar) mode puts every container
+# on the SAME localhost network namespace instead of giving each one its own
+# hostname — unlike novagentic, which is 3000, this can't collide with it.
+ENV NITRO_PORT=3001
 ENV NITRO_HOST=0.0.0.0
 COPY --from=build --chown=node:node /app/.output ./.output
-EXPOSE 3000
+EXPOSE 3001
 USER node
 CMD ["node", ".output/server/index.mjs"]
