@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Idempotently creates the "Rentila Sync" Product + a recurring 3€/month
+// Idempotently creates the "Palier" Product + a recurring 3€/month
 // Price (identified by a stable lookup_key, so re-running this is a no-op
 // once they exist). Run with: npm run stripe:setup
 //
@@ -30,7 +30,7 @@ if (existing.data.length > 0) {
   process.exit(0)
 }
 
-const product = await stripe.products.create({ name: 'Rentila Sync', description: 'Monthly subscription' })
+const product = await stripe.products.create({ name: 'Palier', description: 'Monthly subscription' })
 const price = await stripe.prices.create({
   product: product.id,
   currency: 'eur',

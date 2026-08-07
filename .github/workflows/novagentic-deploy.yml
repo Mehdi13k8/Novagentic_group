@@ -1,0 +1,80 @@
+name: Deploy Novagentic (marketing site)
+
+# Default/main workflow for this repo — builds the Novagentic marketing
+# site's image and pushes it live. Novagentic and Palier run as two
+# separate containers on the SAME "Novagentic" Web App (see
+# ../azure-compose.yml) rather than two Web Apps, so a crash in Palier's
+# container can't take Novagentic down with it — Docker restarts only the
+# container that crashed. What this file's deploy step CANNOT avoid: since
+# both containers live in one Web App/site process, applying a deploy here
+# still restarts the whole site (Palier's container included) for a few
+# seconds. This workflow file itself, though, is fully independent of
+# palier-deploy.yml/proxy-deploy.yml — a bad edit or failing job in either
+# of those can never block or fail this one.
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - "palier/**"
+      - "proxy/**"
+  workflow_dispatch:
+    inputs:
+      build_only:
+        description: "Build + push the image only, skip applying azure-compose.yml/restarting the Web App (bootstrap use: get this image into GHCR before the first-ever compose switch, which needs all three images to already exist)"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write   # OIDC login to Azure
+  contents: read
+  packages: write   # push image to GHCR
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/mehdi13k8/novagentic:${{ github.sha }}
+            ghcr.io/mehdi13k8/novagentic:latest
+
+  deploy:
+    needs: build
+    if: ${{ github.event.inputs.build_only != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sync app settings
+        env:
+          NUXT_ACS_CONNECTION_STRING: ${{ secrets.NUXT_ACS_CONNECTION_STRING }}
+          NUXT_ACS_SENDER_ADDRESS: ${{ secrets.NUXT_ACS_SENDER_ADDRESS }}
+          NUXT_CONTACT_TO: ${{ secrets.NUXT_CONTACT_TO }}
+          NUXT_CONTACT_CC: ${{ secrets.NUXT_CONTACT_CC }}
+        run: bash scripts/push-app-settings.sh --skip-health-check
+
+      - name: Apply compose config + restart shared Web App
+        run: |
+          az webapp config container set \
+            --name Novagentic --resource-group Novagentic_group \
+            --multicontainer-config-type COMPOSE \
+            --multicontainer-config-file azure-compose.yml
+          az webapp restart --name Novagentic --resource-group Novagentic_group

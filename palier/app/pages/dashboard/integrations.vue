@@ -5,7 +5,7 @@ const { data: org, refresh } = await useFetch('/api/org/me')
 
 // --- Rentila -----------------------------------------------------------
 // Rentila has no browser-redirect OAuth for third-party apps (confirmed —
-// see rentila-sync/README.md "Phase 0 findings"): the only documented
+// see palier/README.md "Phase 0 findings"): the only documented
 // mechanism is a landlord generating their own client_id/client_secret from
 // their Rentila account page and handing them to the app that uses them.
 // This form is that, not an OAuth redirect.

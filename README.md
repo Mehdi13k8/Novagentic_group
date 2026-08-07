@@ -27,7 +27,11 @@ server/
 scripts/
   push-app-settings.sh      # sync secrets between local .env and Azure (see below)
 .github/workflows/
-  azure-webapps-node.yml    # build image, push to GHCR, deploy to Azure, sync app settings
+  novagentic-deploy.yml     # build this app's image, push to GHCR, apply azure-compose.yml, restart
+  palier-deploy.yml         # same, for palier/ (own image, same shared Web App)
+  proxy-deploy.yml          # same, for proxy/ (nginx front door, same shared Web App)
+azure-compose.yml           # multi-container config: 3 containers, 1 Web App — see "Deployment"
+proxy/                      # nginx front door — Host-routes to novagentic or palier internally
 Dockerfile                  # container build used for deployment
 nuxt.config.ts              # runtimeConfig maps NUXT_* env vars for the contact form
 ```
@@ -67,16 +71,46 @@ The app runs on Azure App Service in **container mode** (Web App `Novagentic`,
 resource group `Novagentic_group`, France Central). It cannot run as a plain
 Node/code deploy — the image is what gets deployed.
 
-`.github/workflows/azure-webapps-node.yml` runs on every push to `main`:
+**This Web App is shared.** It's a multi-container (Docker Compose) app —
+see `azure-compose.yml` — running three containers side by side instead of
+one: this marketing site, `palier/` (the Apartment Accounting Product,
+formerly `rentila-sync/`), and `proxy/` (nginx), which is the only one
+actually exposed to the internet — it Host-routes each request to whichever
+of the other two it's for (`proxy/nginx.conf`). One Web App, one bill, but
+each app still gets real crash isolation: `restart: always` on every
+service means Docker restarts only the container that died, so a bug that
+crashes Palier's process never takes this site down with it. What sharing
+one Web App does **not** avoid: a deploy of *any* of the three restarts the
+whole site (all three containers) for a few seconds, since they're one site
+process under the hood — Azure's own docs call multi-container support
+"best effort" and don't recommend it over a real orchestrator for
+production, which is the trade-off being made here for the simplicity of
+one shared, cheap Web App.
 
-1. **build** — builds the Docker image and pushes it to
-   `ghcr.io/mehdi13k8/novagentic` (tagged with the commit SHA and `latest`).
-2. **deploy** — logs into Azure via OIDC (`azure/login@v2`), syncs app
-   settings (see below), then points the Web App at the new image
-   (`azure/webapps-deploy@v3`).
+Each app has its own, fully independent workflow file —
+`novagentic-deploy.yml` (this app, triggers on anything outside
+`palier/**`/`proxy/**`), `palier-deploy.yml` (see `palier/README.md`), and
+`proxy-deploy.yml` — so a break in any one of them can never block or fail
+the others. Each does the same three things on a push to `main` that
+touches its own path:
+
+1. **build** — builds that app's Docker image and pushes it to GHCR
+   (`ghcr.io/mehdi13k8/novagentic`, `.../palier`, or `.../novagentic-proxy`
+   — tagged with the commit SHA and `latest`; the deployed compose config
+   always tracks `:latest`, so there's no per-app SHA-pinned rollback here
+   the way the old single-container `azure/webapps-deploy@v3` setup gave —
+   rolling back means pushing a revert commit, not repointing a tag).
+2. **deploy** — logs into Azure via OIDC (`azure/login@v2`), syncs that
+   app's own app settings (see below — all three apps' settings live on the
+   same Web App and are visible to all three containers, since Azure
+   multi-container apps don't scope Application Settings per-container),
+   then re-applies `azure-compose.yml` and restarts the Web App so it pulls
+   the freshly-pushed image.
 
 Required GitHub Actions secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`,
-`AZURE_SUBSCRIPTION_ID` (OIDC login), plus the four `NUXT_*` secrets below.
+`AZURE_SUBSCRIPTION_ID` (OIDC login, shared by all three workflows), plus
+the four `NUXT_*` secrets below for this app and whatever `palier/README.md`
+lists for that one.
 
 ### Keeping the contact form's mailing config in sync (`scripts/push-app-settings.sh`)
 
@@ -86,8 +120,8 @@ environment variables in production — there's no `.env` file on the server.
 in sync with the `NUXT_*` keys, and it runs in **two places**:
 
 **1. Automatically in CI, on every deploy.** The `deploy` job in
-`azure-webapps-node.yml` has a "Sync app settings" step that runs this
-script right before `azure/webapps-deploy@v3`:
+`novagentic-deploy.yml` has a "Sync app settings" step that runs this
+script right before re-applying `azure-compose.yml`/restarting the Web App:
 
 ```yaml
 - name: Sync app settings
@@ -131,3 +165,11 @@ directions on purpose.
 
 Both `novagentic.fr` (+ `www`) and `novagentix.fr` are bound to the Web App
 with managed SSL certificates. DNS is hosted at IONOS.
+
+`palier.novagentic.fr` is meant to join them, bound to this same Web App —
+`proxy/nginx.conf` already routes that hostname to the `palier` container.
+**Not live yet**: needs a CNAME record for `palier` → this Web App's default
+hostname (`novagentic-htf8ezc8a8e9aya8.francecentral-01.azurewebsites.net`)
+added at IONOS first (DNS isn't something `az` can do here — it's a
+different provider), then `az webapp config hostname add` + a free App
+Service managed certificate once that CNAME resolves.

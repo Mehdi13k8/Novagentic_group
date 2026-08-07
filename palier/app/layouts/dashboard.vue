@@ -21,7 +21,7 @@ async function logout() {
   <div class="min-h-screen bg-(--color-bg) text-(--color-fg)">
     <header class="border-b border-(--color-line)">
       <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        <NuxtLink to="/dashboard" class="display text-lg">Rentila Sync</NuxtLink>
+        <NuxtLink to="/dashboard" class="display text-lg">Palier</NuxtLink>
         <nav class="flex items-center gap-6">
           <NuxtLink
             v-for="link in links"

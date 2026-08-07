@@ -1,0 +1,38 @@
+# Azure App Service multi-container (Docker Compose) config for the shared
+# "Novagentic" Web App. This is Azure-only plumbing, pushed via
+# `az webapp config container set --multicontainer-config-file azure-compose.yml`
+# by every deploy workflow — it is NOT used for local dev, which still runs
+# each app independently (`npm run dev` in the repo root or in palier/, see
+# their own READMEs).
+#
+# Three containers, one Web App/one bill:
+#   - proxy       the only one Azure routes internet traffic to (see
+#                 proxy/nginx.conf) — host-based routing to the other two.
+#   - novagentic  the marketing site, unreachable directly from outside.
+#   - palier      the Apartment Accounting Product, same.
+#
+# `restart: always` on each service is what actually delivers the isolation
+# that was asked for: if palier's Node process crashes, Docker restarts
+# *that* container on its own — novagentic and the proxy are untouched and
+# keep serving traffic the whole time. What this does NOT protect against is
+# a deploy of either app, which restarts the whole Web App (all three
+# containers) since they live in one site process — see root README
+# "Deployment" for that trade-off, and Azure's own docs, which call
+# multi-container support "best effort" and don't recommend it for
+# production over a real orchestrator.
+version: '3.3'
+
+services:
+  proxy:
+    image: ghcr.io/mehdi13k8/novagentic-proxy:latest
+    restart: always
+    ports:
+      - "80:80"
+
+  novagentic:
+    image: ghcr.io/mehdi13k8/novagentic:latest
+    restart: always
+
+  palier:
+    image: ghcr.io/mehdi13k8/palier:latest
+    restart: always

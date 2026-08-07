@@ -18,13 +18,15 @@
 #   bash scripts/push-app-settings.sh --pull              # pull Azure -> local .env
 #   bash scripts/push-app-settings.sh --pull --dry-run    # preview what --pull would change, no writes
 #
-# Shared by every app in this repo, not just Novagentic's own — point it at
-# a different app via env vars before invoking:
-#   AZURE_WEBAPP_NAME=rentila-sync AZURE_RESOURCE_GROUP=... HEALTH_URL=... \
-#     ENV_FILE=rentila-sync/.env bash scripts/push-app-settings.sh
-# See rentila-sync/package.json's push:env/pull:env scripts for the wired-up
-# version of that. Defaults below are Novagentic's own, for backward compat
-# with its existing npm run push:env/pull:env.
+# Shared by every app in this repo, not just Novagentic's own — Palier
+# (palier/, formerly rentila-sync/) runs as a second container on this same
+# Web App rather than its own (see ../azure-compose.yml), so its own
+# push:env/pull:env scripts (palier/package.json) already point at this same
+# AZURE_WEBAPP_NAME default; only ENV_FILE needs overriding for its own
+# .env:
+#   ENV_FILE=palier/.env bash scripts/push-app-settings.sh
+# Defaults below are Novagentic's own, for backward compat with its existing
+# npm run push:env/pull:env.
 #
 # Sourcing (push mode):
 #   - Local dev: reads NUXT_* keys from $ENV_FILE (default: .env at the repo

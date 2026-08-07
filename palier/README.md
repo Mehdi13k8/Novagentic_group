@@ -1,21 +1,36 @@
-# Rentila Sync
+# Palier
 
-Multi-tenant SaaS that reconciles bank transactions (via [Bridge
-API](https://docs.bridgeapi.io)) against Rentila rent payments, so a
-landlord doesn't have to manually check whether a tenant's transfer landed.
+(Formerly "Rentila Sync" — renamed, same app.) Multi-tenant SaaS that
+reconciles bank transactions (via [Bridge API](https://docs.bridgeapi.io))
+against Rentila rent payments, so a landlord doesn't have to manually check
+whether a tenant's transfer landed.
 
 Lives inside the `Novagentic_group` repo (this folder) but is a separate,
 unrelated product from the Novagentic marketing site one level up — own
-`package.json`, own Dockerfile, meant for its own Azure Web App. Sharing the
-repo and its GitHub Actions secrets store was a deliberate choice; sharing
-the actual Nuxt app/runtime with the marketing site was not — run this
-folder's `npm install`/`npm run dev` independently of the repo root's.
+`package.json`, own Dockerfile. Sharing the repo and its GitHub Actions
+secrets store was a deliberate choice; sharing the actual Nuxt app/runtime
+with the marketing site was not — run this folder's `npm install`/`npm run
+dev` independently of the repo root's.
 
-Both apps share one workflow file, `../.github/workflows/azure-webapps-node.yml`
-— a `changes` job diffs the push against its previous commit and only runs
-this app's build+deploy jobs when something under `rentila-sync/**` actually
-changed (and vice versa for the marketing site), so editing one never
-redeploys the other.
+**Shares the marketing site's Web App**, though — deliberately, to avoid
+paying for a second App Service Plan: it runs as its own container
+alongside Novagentic's on the one `Novagentic` Web App (see
+`../azure-compose.yml`), reachable at `palier.novagentic.fr` via
+`../proxy/nginx.conf`'s Host-based routing rather than a dedicated Web App.
+`restart: always` per container in the compose file is what still gets you
+crash isolation despite sharing: if this app's process crashes, Docker
+restarts only this container — Novagentic keeps serving the whole time. A
+*deploy* of either app, however, restarts the whole Web App (all
+containers) for a few seconds, since they're one site process under the
+hood — see root `README.md` "Deployment" for the full trade-off.
+
+Each app still has its own workflow file under `../.github/workflows/` —
+`palier-deploy.yml` for this app, `novagentic-deploy.yml` for the marketing
+site, `proxy-deploy.yml` for the shared nginx front door — gated by
+GitHub's native `paths` push filters (`palier/**` here) rather than one
+shared file, so editing one app doesn't rebuild the others **and** a break
+in one workflow (bad YAML, failing build/deploy job) can't block or fail
+the other two's runs.
 
 Full design context, decisions, and reasoning live in the plan doc this was
 built from: `~/.claude/plans/reading-the-context-of-wild-ripple.md`.
@@ -253,7 +268,7 @@ Generate `NUXT_ENCRYPTION_KEY` and `NUXT_SESSION_PASSWORD` with `openssl rand
 `npm run stripe:setup` creates the €3/month Product+Price (idempotent, safe
 to re-run) and prints the price id to put in `NUXT_STRIPE_PRICE_ID`.
 
-### Syncing `.env` with Azure (once the Web App exists)
+### Syncing `.env` with Azure
 
 Reuses Novagentic's own `scripts/push-app-settings.sh` rather than a copy —
 that script now takes `AZURE_WEBAPP_NAME`/`AZURE_RESOURCE_GROUP`/`HEALTH_URL`/
@@ -266,24 +281,42 @@ npm run pull:env:dry-run   # preview what --pull would change
 npm run pull:env           # pull Azure Application Settings -> this folder's .env
 ```
 
-Targets the `rentila-sync` Web App name and this folder's own `.env` (not
-the repo root's, which is Novagentic's) — doesn't do anything useful until
-that Web App exists (see "Deployment" below).
+Targets the shared `Novagentic` Web App name (see "Deployment" below for
+why it's shared) and this folder's own `.env` (not the repo root's, which
+is Novagentic the marketing site's) — pushes only this app's `NUXT_*` keys,
+same additive semantics as the root app's `push:env`, so running both
+never clobbers the other's settings.
 
 ## Deployment
 
-Not deployed yet. `../.github/workflows/azure-webapps-node.yml` (repo root
-— GitHub only reads workflows from the top-level `.github/workflows/`, not
-per-folder ones) builds+deploys both this app and Novagentic from one file;
-a `changes` job path-diffs each push so only the app(s) that actually
-changed get rebuilt. This app's job uses its own image
-(`ghcr.io/mehdi13k8/rentila-sync`) and `AZURE_WEBAPP_NAME: rentila-sync` —
-still a **TODO placeholder**, no such Azure Web App exists yet (the deploy
-job will fail at `azure/webapps-deploy` until it does). **Do not** point it
-at Novagentic's existing Web App — this is a separate product and needs its
-own; it defaults to the same `Novagentic_group` Azure *resource group*
-though (via `push-app-settings.sh`'s own default), which is a reasonable
-place for it to live unless you'd rather split resource groups too.
+Not deployed yet. `../.github/workflows/palier-deploy.yml` (repo root —
+GitHub only reads workflows from the top-level `.github/workflows/`, not
+per-folder ones) builds this app's image on its own, independent of
+Novagentic's `novagentic-deploy.yml`; a native `paths: palier/**` push
+filter means only this app's workflow runs when this app's changed, and a
+crash in this app's build/deploy can't touch the marketing site's pipeline
+since they're separate files.
+
+Where it deploys *to*, though, is deliberately shared: this app's job
+pushes `ghcr.io/mehdi13k8/palier` and then re-applies
+`../azure-compose.yml` to Novagentic's existing Web App (`AZURE_WEBAPP_NAME`
+defaults to `Novagentic` — see `push-app-settings.sh`) rather than standing
+up a separate Web App for this product. That's intentional: this app runs
+as its own container next to Novagentic's on that one Web App, so it's
+still crash-isolated (a Docker `restart: always` per container) without a
+second App Service Plan to pay for. **TODO placeholders before this can go
+live**: no DNS record for `palier.novagentic.fr` exists yet (see root
+`README.md` "Custom domains"), and — more importantly — **the live Web App
+is still single-container** (running Novagentic only). The very first of
+these three workflows to run its deploy step in CI will flip it into
+multi-container mode by applying `azure-compose.yml`, which references
+`ghcr.io/mehdi13k8/palier:latest` and `ghcr.io/mehdi13k8/novagentic-proxy:latest`
+— if either doesn't exist in GHCR yet at that point, the live site (including
+Novagentic) breaks. **Do not just merge this to `main` and let CI run
+normally** — bootstrap manually first: build+push all three images at least
+once (e.g. `workflow_dispatch` each of the three workflows once, in any
+order, from this branch or right after merging) so all three tags exist in
+GHCR *before* any deploy job applies the compose config for the first time.
 
 Secrets live in this same GitHub repo's Actions secrets (shared store,
 `gh secret set <NAME>` from the repo root) — see "Getting started" for which

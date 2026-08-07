@@ -60,7 +60,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'Rentila Sync',
+      title: 'Palier',
       htmlAttrs: { lang: 'fr' },
       meta: [
         { charset: 'utf-8' },

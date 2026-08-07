@@ -16,7 +16,7 @@
 
     <div class="flex flex-col gap-4 text-sm text-(--color-fg-soft)">
       <p>
-        Rentila Sync is operated by <strong class="text-(--color-fg)">[legal name / address — fill in before
+        Palier is operated by <strong class="text-(--color-fg)">[legal name / address — fill in before
         sharing this page with anyone else]</strong>. Contact for any privacy question or data request:
         <a href="mailto:dietis13008@gmail.com" class="underline">dietis13008@gmail.com</a>.
       </p>
@@ -24,7 +24,7 @@
       <section>
         <h2 class="text-base font-medium text-(--color-fg)">What this service does</h2>
         <p class="mt-1">
-          Rentila Sync reads rent-payment data from your Rentila account and transaction
+          Palier reads rent-payment data from your Rentila account and transaction
           history from your bank (via Bridge or Enable Banking, whichever you connect), and
           matches the two so you can see which rent payments have actually landed. It never
           initiates a payment and never modifies anything in your bank account.

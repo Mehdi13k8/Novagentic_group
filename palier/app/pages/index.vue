@@ -9,7 +9,7 @@ const { user } = useUserSession()
 <template>
   <main class="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-6 px-6 py-16">
     <div>
-      <h1 class="display text-3xl">Rentila Sync</h1>
+      <h1 class="display text-3xl">Palier</h1>
       <p class="mt-2 text-sm text-(--color-fg-soft)">
         Reconciles bank transactions against Rentila rent payments, so you don't have
         to check by hand whether a tenant's transfer landed.

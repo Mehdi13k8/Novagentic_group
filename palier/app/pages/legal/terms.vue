@@ -14,7 +14,7 @@
 
     <div class="flex flex-col gap-4 text-sm text-(--color-fg-soft)">
       <p>
-        These terms govern use of Rentila Sync, operated by
+        These terms govern use of Palier, operated by
         <strong class="text-(--color-fg)">[legal name / address — fill in before sharing this page with
         anyone else]</strong>. By creating an account you agree to them. Questions:
         <a href="mailto:dietis13008@gmail.com" class="underline">dietis13008@gmail.com</a>.
@@ -23,7 +23,7 @@
       <section>
         <h2 class="text-base font-medium text-(--color-fg)">The service</h2>
         <p class="mt-1">
-          Rentila Sync is a read-only reconciliation tool: it reads your Rentila rent-payment
+          Palier is a read-only reconciliation tool: it reads your Rentila rent-payment
           records and your bank transaction history (via Bridge or Enable Banking) and matches
           them, so you can see which rent payments have landed. It does not initiate payments,
           modify your bank accounts, or write anything back to Rentila on your behalf — Rentila's
