@@ -50,10 +50,10 @@
         "../node_modules/crossws"
       ],
       "#content/components": [
-        "./content/components.ts"
+        "./content/components"
       ],
       "#content/manifest": [
-        "./content/manifest.ts"
+        "./content/manifest"
       ],
       "~": [
         "../app"

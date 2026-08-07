@@ -171,3 +171,28 @@ body {
   margin: 2.5em 0;
   border-color: var(--color-line);
 }
+
+.blog-prose table {
+  display: block;
+  margin-top: 2em;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.blog-prose th,
+.blog-prose td {
+  border: 1px solid var(--color-line);
+  padding: 0.6em 0.9em;
+  text-align: left;
+  vertical-align: top;
+}
+
+.blog-prose th {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--color-fg-soft);
+  background: var(--color-bg-raised);
+  white-space: nowrap;
+}
