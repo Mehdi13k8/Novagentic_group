@@ -20,5 +20,10 @@ export default defineEventHandler(async (event) => {
       userCreated: Boolean(org.bridge.userUuid),
       connected: Boolean(org.bridge.itemId),
     },
+    enablebanking: {
+      connected: Boolean(org.enablebanking.sessionId && org.enablebanking.accountUids?.length),
+      aspspName: org.enablebanking.aspspName ?? null,
+      validUntil: org.enablebanking.validUntil ?? null,
+    },
   }
 })

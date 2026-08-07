@@ -26,6 +26,18 @@ function mapPaymentStatus(status: RentilaPayment['PaymentStatus']): PaymentDoc['
  * this is the ingest direction, never a write-back.
  */
 export async function syncOrgRentilaData(org: HydratedDocument<OrganizationDoc>) {
+  // Same "not connected yet, no-op rather than throw" guard syncOrgTransactions
+  // and syncOrgEnableBankingTransactions already have (reconcile.ts) — this
+  // one was missing it, which let a disconnected Rentila silently abort the
+  // sweep's Bridge/Enable Banking sync for the same org too (one try/catch
+  // around all three calls in server/tasks/reconcile/sweep.ts) since this
+  // threw before either of the others ran. Fixed there too, but guard here
+  // regardless — every other caller already checks first, this shouldn't be
+  // the one path that doesn't.
+  if (!org.rentila.clientId || !org.rentila.encryptedClientSecret) {
+    return { properties: 0, tenants: 0, leases: 0, payments: 0 }
+  }
+
   const client = createRentilaClient({
     clientId: org.rentila.clientId,
     clientSecret: decryptSecret(org.rentila.encryptedClientSecret),
@@ -83,13 +95,16 @@ export async function syncOrgRentilaData(org: HydratedDocument<OrganizationDoc>)
   const { items: payments } = await client.listPayments()
   for (const p of payments) {
     const propertyId = propertyIdMap.get(p.PropertyID)
-    const leaseId = leaseIdMap.get(p.LeaseID)
-    const tenantId = tenantIdMap.get(p.TenantID)
-    // Expenses (ENGIE, syndic, taxes...) don't carry a real tenant/lease in
-    // Rentila's data — only rent payments do. Skip rows we can't fully
-    // resolve rather than writing a half-populated Payment doc; the
-    // reconciliation engine only ever looks at kind: 'rent' anyway.
-    if (p.PaymentType !== 'rent' || !propertyId || !leaseId || !tenantId) continue
+    if (!propertyId) continue // property not synced (shouldn't happen, but don't crash the whole sync over one bad row)
+
+    const isRent = p.PaymentType === 'rent'
+    const leaseId = isRent ? leaseIdMap.get(p.LeaseID) : undefined
+    const tenantId = isRent ? tenantIdMap.get(p.TenantID) : undefined
+    // Rent needs a resolved lease/tenant to be meaningful (that's who owes
+    // it); expenses (ENGIE, syndic, taxes...) never carry a real tenant in
+    // Rentila's data at all — that's expected, not a resolution failure, so
+    // only rent skips over an unresolved one.
+    if (isRent && (!leaseId || !tenantId)) continue
 
     // NOTE (known rough edge): `status`/`amountPaid`/`amountLeft` here
     // mirror Rentila's own record, which stays 'pending' until the landlord
@@ -108,7 +123,7 @@ export async function syncOrgRentilaData(org: HydratedDocument<OrganizationDoc>)
           propertyId,
           leaseId,
           tenantId,
-          kind: 'rent',
+          kind: isRent ? 'rent' : 'expense',
           amount: Number(p.PaymentAmount),
           amountPaid: p.PaymentAmountPaid,
           amountLeft: p.PaymentAmountLeft,

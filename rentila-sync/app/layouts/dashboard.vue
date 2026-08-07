@@ -6,6 +6,8 @@ const links = [
   { to: '/dashboard', label: 'Overview' },
   { to: '/dashboard/integrations', label: 'Integrations' },
   { to: '/dashboard/payments', label: 'Payments' },
+  { to: '/dashboard/virements', label: 'Virements' },
+  { to: '/dashboard/accounting', label: 'Accounting' },
 ]
 
 async function logout() {

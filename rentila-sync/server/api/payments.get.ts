@@ -16,8 +16,12 @@ export default defineEventHandler(async (event) => {
   return {
     items: payments.map((p) => ({
       id: p._id.toString(),
+      kind: p.kind,
       property: (p.propertyId as unknown as { title?: string })?.title ?? null,
+      // Expenses genuinely have no tenant in Rentila's data — null here means
+      // "not applicable", not "failed to resolve" (see rentilaSync.ts).
       tenant: (p.tenantId as unknown as { fullName?: string })?.fullName ?? null,
+      personLabel: p.personLabel,
       amount: p.amount,
       status: p.status,
       dueDate: p.dueDate,

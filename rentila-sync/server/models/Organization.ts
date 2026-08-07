@@ -14,6 +14,17 @@ export interface OrganizationDoc {
     userUuid?: string // Bridge aggregation user for this org (one Bridge app, many users)
     itemId?: number // the bank connection created via Connect
   }
+  // Fast, no-KYB alternative to Bridge (Restricted Production — self-linked
+  // accounts only, see server/utils/enablebanking.ts). Separate provider,
+  // separate state; BankTransaction.provider tells them apart downstream.
+  enablebanking: {
+    pendingState?: string // set on /connect, checked+cleared on /callback — loose CSRF/replay guard
+    sessionId?: string // Enable Banking's session id after a successful consent exchange
+    aspspName?: string
+    aspspCountry?: string
+    accountUids?: string[] // the linked account(s) this session grants access to
+    validUntil?: Date // consent expiry — bank-set, may be shorter than requested
+  }
   stripe: {
     customerId?: string
     subscriptionId?: string
@@ -40,6 +51,14 @@ const organizationSchema = new Schema<OrganizationDoc>(
     bridge: {
       userUuid: { type: String },
       itemId: { type: Number },
+    },
+    enablebanking: {
+      pendingState: { type: String },
+      sessionId: { type: String },
+      aspspName: { type: String },
+      aspspCountry: { type: String },
+      accountUids: [{ type: String }],
+      validUntil: { type: Date },
     },
     stripe: {
       customerId: { type: String },

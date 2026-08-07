@@ -6,3 +6,10 @@ node_modules
 !.env.example
 *.log
 .DS_Store
+
+# Enable Banking app keypair — the private key signs every API request's
+# JWT (see server/utils/enablebanking.ts). It's base64'd into .env
+# (already gitignored above) for the running app; these raw files are just
+# where openssl wrote them and must never end up in git history.
+private.key
+*.key

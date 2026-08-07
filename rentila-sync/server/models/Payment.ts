@@ -7,8 +7,11 @@ export interface PaymentDoc {
   orgId: Types.ObjectId
   rentilaId: number // Rentila's Payment.Id
   propertyId: Types.ObjectId
-  leaseId: Types.ObjectId
-  tenantId: Types.ObjectId
+  // Expenses (ENGIE, syndic, taxes...) don't carry a real lease/tenant in
+  // Rentila's data — only rent does. Optional rather than a placeholder
+  // ObjectId, so "no tenant" is representable instead of faked.
+  leaseId?: Types.ObjectId
+  tenantId?: Types.ObjectId
   kind: 'rent' | 'expense'
   amount: number
   amountPaid: number
@@ -30,8 +33,8 @@ const paymentSchema = new Schema<PaymentDoc>(
     orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true },
     rentilaId: { type: Number, required: true },
     propertyId: { type: Schema.Types.ObjectId, ref: 'Property', required: true },
-    leaseId: { type: Schema.Types.ObjectId, ref: 'Lease', required: true },
-    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+    leaseId: { type: Schema.Types.ObjectId, ref: 'Lease' },
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant' },
     kind: { type: String, enum: ['rent', 'expense'], required: true },
     amount: { type: Number, required: true },
     amountPaid: { type: Number, required: true, default: 0 },

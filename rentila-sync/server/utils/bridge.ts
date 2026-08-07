@@ -40,10 +40,11 @@ export interface BridgeTransaction {
  * their own Bridge app credentials.
  *
  * Endpoints/headers verified against https://docs.bridgeapi.io on
- * 2026-08-07 (v3, Bridge-Version 2025-01-15) — actual sandbox responses
- * haven't been exercised yet (no network probing was done here, unlike
- * Rentila's client); confirm the exact response shapes the first time this
- * runs against the sandbox keys.
+ * 2026-08-07 (v3, Bridge-Version 2025-01-15). First real run against live
+ * keys the same day caught one gap the docs reading missed: user-scoped
+ * calls need Client-Id/Client-Secret AND the user's Bearer token, not the
+ * Bearer token alone (createConnectSession was 401ing on that). Fixed —
+ * see appHeaders() usage below.
  */
 export function createBridgeClient(appCredentials: BridgeAppCredentials) {
   async function createUser(externalUserId: string) {
@@ -69,13 +70,18 @@ export function createBridgeClient(appCredentials: BridgeAppCredentials) {
 
   /** Returns the hosted webview URL to redirect the landlord to for bank login (Bridge Connect). */
   async function createConnectSession(userToken: string, opts: { email: string; callbackUrl?: string }) {
+    // Bridge v3 requires the app's Client-Id/Client-Secret on EVERY
+    // user-scoped call, alongside the user's Bearer token — the Bearer
+    // token alone (no app headers) gets a 401, even with a valid token and
+    // valid app credentials. Confirmed 2026-08-07 against the real API:
+    // authenticateUser (which does send Client-Id/Client-Secret) succeeded,
+    // this call (which didn't) 401'd.
     return $fetch<{ id: string; url: string }>('/aggregation/connect-sessions', {
       baseURL: BASE_URL,
       method: 'POST',
       headers: {
+        ...appHeaders(appCredentials),
         Authorization: `Bearer ${userToken}`,
-        'Bridge-Version': BRIDGE_VERSION,
-        'Content-Type': 'application/json',
       },
       body: {
         user_email: opts.email,
@@ -86,14 +92,15 @@ export function createBridgeClient(appCredentials: BridgeAppCredentials) {
   }
 
   async function listTransactions(userToken: string, params: { since?: string; accountId?: number } = {}) {
+    // Same app-header requirement as createConnectSession above.
     return $fetch<{ resources: BridgeTransaction[]; pagination: { next_uri?: string } }>(
       '/aggregation/transactions',
       {
         baseURL: BASE_URL,
         method: 'GET',
         headers: {
+          ...appHeaders(appCredentials),
           Authorization: `Bearer ${userToken}`,
-          'Bridge-Version': BRIDGE_VERSION,
         },
         query: {
           since: params.since,

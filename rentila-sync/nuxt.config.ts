@@ -3,6 +3,13 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-01',
   devtools: { enabled: true },
+  // Dev-only (never touches `nuxt build`/Azure) — Enable Banking's redirect
+  // URI check requires https even for localhost (confirmed: it rejected a
+  // plain http:// localhost callback), so the dev server needs to actually
+  // terminate TLS itself, not just have https in the URL we send. Nuxt
+  // auto-generates a self-signed cert for this; your browser will warn
+  // once on first visit to https://localhost:3000 — click through it.
+  devServer: { https: true },
   modules: ['nuxt-auth-utils'],
   css: ['~/assets/css/main.css'],
   vite: {
@@ -19,6 +26,18 @@ export default defineNuxtConfig({
     bridgeClientId: '',
     bridgeClientSecret: '',
     bridgeWebhookSecret: '',
+    // Fast, no-KYB alternative to Bridge while Bridge's KYB is pending —
+    // see .env.example "Enable Banking" section. Deliberately
+    // `enablebanking*` (lowercase b, one word) not `enableBanking*` — Nuxt
+    // maps NUXT_-prefixed env vars to these by inserting `_` at each
+    // camelCase boundary, so `enableBankingX` would need
+    // NUXT_ENABLE_BANKING_X, not NUXT_ENABLEBANKING_X like every other file
+    // in this feature (and .env) uses. Got this wrong once already — see
+    // the chat that fixed it; matching Bridge's working bridgeClientId ->
+    // NUXT_BRIDGE_CLIENT_ID pattern here means no camelCase boundary at all
+    // inside "enablebanking".
+    enablebankingApplicationId: '',
+    enablebankingPrivateKeyB64: '',
     stripeSecretKey: '',
     stripeWebhookSecret: '',
     stripePriceId: '',

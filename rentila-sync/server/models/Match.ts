@@ -1,7 +1,11 @@
 import { Schema, Types } from 'mongoose'
 import { rentSyncDb } from '../utils/db'
 
-export type MatchConfidence = 'exact' | 'partial'
+// 'manual' = a landlord-picked link (server/api/transactions/[id]/link.post.ts)
+// — the automated matcher (reconcile.ts's tryMatch) never assigns this itself,
+// it's how a human override is told apart from the automated confidence
+// levels in the audit trail.
+export type MatchConfidence = 'exact' | 'partial' | 'manual'
 export type WriteBackStatus = 'notified' | 'written' | 'failed'
 
 /**
@@ -31,7 +35,7 @@ const matchSchema = new Schema<MatchDoc>(
     orgId: { type: Schema.Types.ObjectId, ref: 'Organization', required: true },
     paymentId: { type: Schema.Types.ObjectId, ref: 'Payment', required: true },
     bankTransactionId: { type: Schema.Types.ObjectId, ref: 'BankTransaction', required: true },
-    confidence: { type: String, enum: ['exact', 'partial'], required: true },
+    confidence: { type: String, enum: ['exact', 'partial', 'manual'], required: true },
     writeBackStatus: { type: String, enum: ['notified', 'written', 'failed'], required: true },
     note: { type: String },
   },

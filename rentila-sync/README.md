@@ -177,6 +177,40 @@ every landlord org becoming a Bridge "user" underneath it
 (HMAC-SHA256 over the **raw** body — never accept an unverified webhook)
 before doing anything.
 
+### Enable Banking integration (`server/utils/enablebanking.ts`) — stopgap for Bridge
+
+Added 2026-08-07: Bridge's production access needs a completed KYB
+(Bridge emails a KYB link — see
+[support.bridgeapi.io/hc/en-150/articles/22854214914322](https://support.bridgeapi.io/hc/en-150/articles/22854214914322)),
+which hadn't arrived yet. Enable Banking's **Restricted Production** mode
+gives real (non-sandbox) API access with no KYB/contract at all, as long as
+the app only ever links accounts you connect yourself — see
+[enablebanking.com/docs/faq](https://enablebanking.com/docs/faq/). That's
+this exact use case (landlord's own bank), **not** a general multi-tenant
+replacement for Bridge — other people's accounts still need Bridge's (or
+Enable Banking's own) full KYB later.
+
+Auth model is app-level only: one JWT (RS256, signed with a private key
+registered against an `application_id`/"kid" in the Control Panel)
+authenticates every call — no separate per-user bearer token like Bridge
+has. Consent is scoped by which account `uid`s a session grants, not by a
+different header. There's also **no webhook** on this path — unlike Bridge,
+`server/tasks/reconcile/sweep.ts` polling is the *primary* sync mechanism
+for Enable Banking accounts, not just a backstop.
+
+Both providers write into the same `BankTransaction` collection
+(`provider: 'bridge' | 'enablebanking'`), so `server/utils/reconcile.ts`'s
+matching/claim logic doesn't care which one sourced a transaction.
+
+⚠️ **Unverified assumption, flag if reconciliation looks wrong**: whether
+Enable Banking signs `transaction_amount.amount` directly (credit positive/
+debit negative, like Bridge) or reports it unsigned with a separate
+`credit_debit_indicator` field (the common Berlin-Group/NextGenPSD2
+convention) wasn't confirmed against a live response before this shipped —
+`ingestEnableBankingTransaction` handles both, but re-check `raw` on a real
+ingested `BankTransaction` doc the first time real transactions come
+through.
+
 ### Billing (Stripe)
 
 `server/utils/stripe.ts` wraps the official SDK (not a hand-rolled client

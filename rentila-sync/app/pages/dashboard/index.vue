@@ -2,6 +2,7 @@
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
 const { data: org, refresh } = await useFetch('/api/org/me')
+const { data: transactions } = await useFetch('/api/transactions')
 const subscribing = ref(false)
 
 async function subscribe() {
@@ -23,6 +24,17 @@ onActivated(() => refresh())
       <p class="eyebrow">Overview</p>
       <h1 class="display mt-1 text-3xl">{{ org?.name }}</h1>
     </div>
+
+    <NuxtLink
+      v-if="transactions?.newMatchesCount"
+      to="/dashboard/virements"
+      class="rounded-lg border border-green-500/40 bg-green-500/10 p-5 text-sm transition-colors hover:border-green-500"
+    >
+      <p class="font-medium text-(--color-fg)">
+        🔔 {{ transactions.newMatchesCount }} new rent payment match{{ transactions.newMatchesCount > 1 ? 'es' : '' }}
+      </p>
+      <p class="mt-1 text-(--color-fg-soft)">A tenant's transfer just matched a pending rent — see Virements →</p>
+    </NuxtLink>
 
     <div class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
       <p class="eyebrow">Subscription</p>
@@ -52,7 +64,7 @@ onActivated(() => refresh())
       </button>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2">
+    <div class="grid gap-4 sm:grid-cols-3">
       <NuxtLink
         to="/dashboard/integrations"
         class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5 transition-colors hover:border-(--color-cobalt)"
@@ -73,6 +85,18 @@ onActivated(() => refresh())
         <p class="mt-2 text-sm">
           <span :class="org?.bridge.connected ? 'text-green-500' : 'text-(--color-fg-soft)'">
             {{ org?.bridge.connected ? 'Connected' : 'Not connected' }}
+          </span>
+        </p>
+      </NuxtLink>
+
+      <NuxtLink
+        to="/dashboard/integrations"
+        class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5 transition-colors hover:border-(--color-cobalt)"
+      >
+        <p class="eyebrow">Bank (Enable Banking)</p>
+        <p class="mt-2 text-sm">
+          <span :class="org?.enablebanking.connected ? 'text-green-500' : 'text-(--color-fg-soft)'">
+            {{ org?.enablebanking.connected ? `Connected — ${org.enablebanking.aspspName}` : 'Not connected' }}
           </span>
         </p>
       </NuxtLink>
