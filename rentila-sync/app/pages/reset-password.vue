@@ -19,7 +19,7 @@ async function onSubmit() {
       method: 'POST',
       body: { email: email.value, token: token.value, password: password.value },
     })
-    await navigateTo('/')
+    await navigateTo('/dashboard')
   } catch (err: any) {
     error.value = err?.data?.statusMessage || 'Invalid or expired reset link'
   } finally {
@@ -30,9 +30,9 @@ async function onSubmit() {
 
 <template>
   <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6 py-16">
-    <h1 class="text-xl font-semibold">Choose a new password</h1>
+    <h1 class="display text-2xl">Choose a new password</h1>
 
-    <p v-if="!token" class="text-sm text-red-600">
+    <p v-if="!token" class="text-sm text-red-500">
       Missing reset token — use the link from the email (or dev server log).
     </p>
 
@@ -43,7 +43,7 @@ async function onSubmit() {
         required
         placeholder="Email"
         autocomplete="email"
-        class="rounded border border-neutral-300 px-3 py-2 text-sm"
+        class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
       <input
         v-model="password"
@@ -52,7 +52,7 @@ async function onSubmit() {
         minlength="8"
         placeholder="New password (8+ characters)"
         autocomplete="new-password"
-        class="rounded border border-neutral-300 px-3 py-2 text-sm"
+        class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
       <input
         v-model="confirmPassword"
@@ -60,15 +60,15 @@ async function onSubmit() {
         required
         placeholder="Confirm new password"
         autocomplete="new-password"
-        class="rounded border border-neutral-300 px-3 py-2 text-sm"
+        class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
 
-      <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+      <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
 
       <button
         type="submit"
         :disabled="loading || !token"
-        class="rounded bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+        class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
       >
         {{ loading ? 'Saving…' : 'Set new password' }}
       </button>

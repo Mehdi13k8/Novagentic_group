@@ -17,7 +17,7 @@ async function onSubmit() {
       method: 'POST',
       body: { email: email.value, password: password.value },
     })
-    await navigateTo('/')
+    await navigateTo('/dashboard')
   } catch (err: any) {
     error.value = err?.data?.statusMessage || 'Could not create account'
   } finally {
@@ -28,7 +28,7 @@ async function onSubmit() {
 
 <template>
   <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6 py-16">
-    <h1 class="text-xl font-semibold">Create an account</h1>
+    <h1 class="display text-2xl">Create an account</h1>
 
     <form class="flex flex-col gap-3" @submit.prevent="onSubmit">
       <input
@@ -37,7 +37,7 @@ async function onSubmit() {
         required
         placeholder="Email"
         autocomplete="email"
-        class="rounded border border-neutral-300 px-3 py-2 text-sm"
+        class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
       <input
         v-model="password"
@@ -46,7 +46,7 @@ async function onSubmit() {
         minlength="8"
         placeholder="Password (8+ characters)"
         autocomplete="new-password"
-        class="rounded border border-neutral-300 px-3 py-2 text-sm"
+        class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
       <input
         v-model="confirmPassword"
@@ -54,21 +54,21 @@ async function onSubmit() {
         required
         placeholder="Confirm password"
         autocomplete="new-password"
-        class="rounded border border-neutral-300 px-3 py-2 text-sm"
+        class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
 
-      <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+      <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
 
       <button
         type="submit"
         :disabled="loading"
-        class="rounded bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+        class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
       >
         {{ loading ? 'Creating…' : 'Create account' }}
       </button>
     </form>
 
-    <p class="text-sm text-neutral-500">
+    <p class="text-sm text-(--color-fg-soft)">
       Already have an account? <NuxtLink to="/login" class="underline">Log in</NuxtLink>
     </p>
   </main>

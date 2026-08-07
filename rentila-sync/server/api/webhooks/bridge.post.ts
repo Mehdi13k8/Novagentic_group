@@ -30,6 +30,17 @@ export default defineEventHandler(async (event) => {
     return { ok: true, received: 'test' }
   }
 
+  // A bank account was actually linked (the Connect redirect landing the
+  // user back on our callback page is just UX — this is the real signal).
+  // This is what flips `bridge.connected` to true on GET /api/org/me.
+  if (payload.type === 'item.created') {
+    const userUuid = String(payload.content.user_uuid ?? '')
+    const itemId = Number(payload.content.item_id)
+    if (userUuid && itemId) {
+      await Organization.updateOne({ 'bridge.userUuid': userUuid }, { $set: { 'bridge.itemId': itemId } })
+    }
+  }
+
   // "New transactions available" per Bridge's event catalog — the webhook
   // itself doesn't carry the transaction data, just tells us to go fetch it.
   if (payload.type === 'item.account.updated') {

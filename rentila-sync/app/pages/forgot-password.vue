@@ -18,10 +18,10 @@ async function onSubmit() {
 
 <template>
   <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6 py-16">
-    <h1 class="text-xl font-semibold">Reset your password</h1>
+    <h1 class="display text-2xl">Reset your password</h1>
 
     <template v-if="sent">
-      <p class="text-sm text-neutral-500">
+      <p class="text-sm text-(--color-fg-soft)">
         If an account exists for that email, a reset link has been sent.
       </p>
     </template>
@@ -33,18 +33,18 @@ async function onSubmit() {
         required
         placeholder="Email"
         autocomplete="email"
-        class="rounded border border-neutral-300 px-3 py-2 text-sm"
+        class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
       <button
         type="submit"
         :disabled="loading"
-        class="rounded bg-neutral-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+        class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
       >
         {{ loading ? 'Sending…' : 'Send reset link' }}
       </button>
     </form>
 
-    <p class="text-sm text-neutral-500">
+    <p class="text-sm text-(--color-fg-soft)">
       <NuxtLink to="/login" class="underline">Back to log in</NuxtLink>
     </p>
   </main>
