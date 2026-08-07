@@ -18,7 +18,15 @@ export default defineEventHandler(async (event) => {
   // "Virements reçus" — incoming transfers only, not every bank line item
   // (expenses/outgoing debits aren't what this view is for; tryMatch() in
   // reconcile.ts applies the same amount > 0 rule for the same reason).
-  const transactions = await BankTransaction.find({ orgId: org._id, amount: { $gt: 0 } })
+  // provider must be a real, current aggregator — defense against exactly
+  // what happened once already: 329 leftover Bridge-sandbox fixture rows
+  // with provider:null (inserted before the field existed, never migrated)
+  // silently showing up here as if they were real transfers.
+  const transactions = await BankTransaction.find({
+    orgId: org._id,
+    amount: { $gt: 0 },
+    provider: { $in: ['bridge', 'enablebanking'] },
+  })
     .sort({ date: -1 })
     .limit(200)
     .populate({
