@@ -1,0 +1,209 @@
+# Rentila Sync
+
+Multi-tenant SaaS that reconciles bank transactions (via [Bridge
+API](https://docs.bridgeapi.io)) against Rentila rent payments, so a
+landlord doesn't have to manually check whether a tenant's transfer landed.
+
+Lives inside the `Novagentic_group` repo (this folder) but is a separate,
+unrelated product from the Novagentic marketing site one level up — own
+`package.json`, own Dockerfile, own deploy workflow
+(`../.github/workflows/rentila-sync-deploy.yml`, scoped to only trigger on
+changes under this folder), meant for its own Azure Web App. Sharing the
+repo and its GitHub Actions secrets store was a deliberate choice; sharing
+the actual Nuxt app/runtime with the marketing site was not — run this
+folder's `npm install`/`npm run dev` independently of the repo root's.
+
+Full design context, decisions, and reasoning live in the plan doc this was
+built from: `~/.claude/plans/reading-the-context-of-wild-ripple.md`.
+
+## Status: early scaffold, not deployed
+
+What's real and working:
+- Mongoose models with the required unique-index/atomic-claim safety
+  mechanism (see "Correctness" below) — this was a hard requirement, not
+  optional.
+- A read-only Rentila API client, confirmed against the live API (see
+  "Phase 0 findings").
+- A Bridge API client, Connect-session creation, webhook receiver with
+  signature verification — built from Bridge's docs, **not yet exercised
+  against the sandbox keys** (no network calls made to Bridge during this
+  build, unlike Rentila which was probed live).
+- The reconciliation engine (matching + atomic claim + notify).
+- A scheduled sweep task as backstop for missed webhooks.
+- **Auth** (`nuxt-auth-utils`): email+password signup/login/logout,
+  encrypted session cookie. Signup auto-creates one `Organization` per user
+  (`server/api/auth/*.ts`).
+- **Billing** (Stripe): a Checkout Session flow
+  (`server/api/billing/checkout.post.ts`) and a signature-verified webhook
+  (`server/api/webhooks/stripe.post.ts`) that syncs `Organization.plan` /
+  `Organization.stripe.subscriptionStatus` from `checkout.session.completed`
+  and `customer.subscription.*` events. `npm run stripe:setup` idempotently
+  creates the €3/month Product+Price.
+
+What's stubbed / missing:
+- **The real dashboard.** `app/pages/index.vue` is just a health-check
+  status page, not the "connect Rentila, connect bank, view matches" UI from
+  the plan's step 6. There's no "connect Rentila"/"connect bank" form yet
+  either — `Organization.rentila`/`.bridge` fields have to be populated by
+  hand (Mongo shell or a seed script) until that UI exists.
+- **Email delivery.** `notifyLandlord()` in `server/utils/reconcile.ts`
+  currently just logs — no actual email goes out yet.
+- **No route actually gates on `Organization.plan`.** The Stripe plumbing
+  updates the field correctly, but nothing in the reconciliation/API routes
+  checks it yet and blocks a `trial`/`canceled` org from using the product —
+  add that check before this is real multi-tenant billing, not just billing
+  bookkeeping.
+
+## Phase 0 findings: Rentila's REST API is read-only
+
+Confirmed by hand on 2026-08-07 via `curl -X OPTIONS` against every known
+resource (properties, tenants, leases, payments — collection and item
+routes): the server responds `405 Method Not Allowed` with `Allow: GET` for
+anything else. Re-run `npm run probe:rentila` any time to re-check this.
+
+Practical consequence: this app **cannot mark a Rentila payment as paid**
+through the REST API. When the reconciliation engine finds a match, it logs
+a deep link into Rentila's own edit page
+(`https://www.rentila.com/landlord/#payments/{id}/edit`) instead of writing
+anything — see `Match.writeBackStatus` (always `'notified'` today).
+
+**Unresolved:** whether Rentila's MCP connector (`https://api2.rentila.com/mcp`,
+session-scoped via browser login, not the app-level client_credentials token
+tested above) exposes a write action that the REST API doesn't. That needs
+checking from an interactive Claude Code session with the connector
+authorized (`/mcp`) — this scaffold was built from a session that couldn't
+reach it. If it does turn out to support writes, `Match.writeBackStatus`
+already has a `'written'` state modeled and ready.
+
+Also confirmed live (used to build the Mongoose schemas / sync logic in
+`server/utils/rentilaSync.ts`):
+- A `Lease`'s `Tenants` field is an **array** (co-tenants) — don't assume
+  one tenant per lease.
+- `Payment.PaymentStatus` is `0` (pending) or `2` (paid) in practice; `-1`
+  ("Perdu") and `"partial"` only seen in the app's UI dropdown, not yet in a
+  live payload — `mapPaymentStatus()` treats anything unrecognized as
+  `'partial'` rather than guessing paid/pending.
+
+## Architecture
+
+One MongoDB Atlas cluster, split into two logical databases
+(`server/utils/db.ts`):
+- `core` — platform-wide: `User`, `Organization` (one per landlord, holds
+  encrypted Rentila credentials + Bridge connection ref).
+- `rent_sync` — this product's data: `Property`, `Tenant`, `Lease`,
+  `Payment` (cached from Rentila), `BankTransaction` (ingested from Bridge),
+  `Match` (audit trail).
+
+This split is deliberate — a future product (an investments/SCPI tracker
+was floated during planning) can get its own database on the same cluster
+without touching these collections.
+
+### Correctness: why a payment can't get double-matched
+
+`Payment.matchedTransactionId` and `BankTransaction.matchedPaymentId` each
+have a **unique, partial** index (only enforced when the field is actually
+set — see the model files). The claim in `server/utils/reconcile.ts` is two
+sequential atomic `findOneAndUpdate` calls guarded by
+`{ matchedX: { $exists: false } }`; if either affects zero documents,
+someone else already won that side, and the code backs off (with a
+compensating rollback if it won the payment side but lost the transaction
+side). This is what makes a bank transaction claiming two payments, or a
+payment getting marked paid twice, structurally impossible rather than just
+unlikely — it was a non-negotiable requirement during planning, not an
+afterthought.
+
+### Rentila integration (`server/utils/rentila.ts`, `rentilaSync.ts`)
+
+Each org brings its **own** Rentila `client_id`/`client_secret` (generated
+from their Rentila profile) — stored encrypted (`server/utils/crypto.ts`,
+AES-256-GCM) on `Organization.rentila`. `syncOrgRentilaData()` pulls
+properties/tenants/leases/rent-payments and upserts them into the
+`rent_sync` cache.
+
+### Bridge integration (`server/utils/bridge.ts`)
+
+Inverted model from Rentila: **one** Bridge app registration
+(`BRIDGE_CLIENT_ID`/`BRIDGE_CLIENT_SECRET`, platform-wide env vars), with
+every landlord org becoming a Bridge "user" underneath it
+(`Organization.bridge.userUuid`). The webhook receiver
+(`server/api/webhooks/bridge.post.ts`) verifies `BridgeApi-Signature`
+(HMAC-SHA256 over the **raw** body — never accept an unverified webhook)
+before doing anything.
+
+### Billing (Stripe)
+
+`server/utils/stripe.ts` wraps the official SDK (not a hand-rolled client
+like Rentila/Bridge — Stripe publishes a proper one). Flow: `POST
+/api/billing/checkout` creates (or reuses) a Stripe Customer for the logged-
+in org, then a Checkout Session in `subscription` mode against
+`NUXT_STRIPE_PRICE_ID`, and returns the hosted redirect URL — no Stripe.js
+or publishable key needed server-side for this flow. `orgId` travels in
+`subscription_data.metadata` so the webhook can find the right org without
+guessing. The webhook (`server/api/webhooks/stripe.post.ts`) verifies
+`Stripe-Signature` via `stripe.webhooks.constructEvent()` against the raw
+body before touching anything — same non-negotiable principle as the Bridge
+webhook.
+
+## Getting started
+
+```bash
+npm install
+cp .env.example .env   # fill in NUXT_MONGODB_URI, NUXT_ENCRYPTION_KEY, Bridge app creds
+npm run dev
+```
+
+Env vars read by the app itself are `NUXT_`-prefixed on purpose — Nuxt's
+runtimeConfig only auto-maps that prefix to `nuxt.config.ts`'s
+`runtimeConfig` keys (`NUXT_MONGODB_URI` → `mongodbUri`). An unprefixed name
+silently never reaches the app; this bit during the initial smoke test (the
+built server logged `MONGODB_URI is not set` — but kept running, since the
+Mongo plugin's failure doesn't crash Nitro, it just leaves `/api/health`
+reporting `mongo: "not connected"`).
+
+`npm run probe:rentila` needs `RENTILA_CLIENT_ID`/`RENTILA_CLIENT_SECRET` in
+`.env` too (your own personal Rentila account, for ad-hoc endpoint checks —
+separate from the per-org encrypted credentials the app itself uses, and
+**not** `NUXT_`-prefixed since that script is plain Node reading
+`process.env` directly, not routed through Nuxt).
+
+Generate `NUXT_ENCRYPTION_KEY` and `NUXT_SESSION_PASSWORD` with `openssl rand
+-base64 32` (each — don't reuse one value for both).
+
+`npm run stripe:setup` creates the €3/month Product+Price (idempotent, safe
+to re-run) and prints the price id to put in `NUXT_STRIPE_PRICE_ID`.
+
+## Deployment
+
+Not deployed yet. `../.github/workflows/rentila-sync-deploy.yml` (repo root
+— GitHub only reads workflows from the top-level `.github/workflows/`, not
+per-folder ones) mirrors Novagentic's own pipeline (GHCR + OIDC-to-Azure +
+`azure/webapps-deploy`), scoped with `paths: ["rentila-sync/**"]` so it only
+triggers on changes here, with its own image (`ghcr.io/mehdi13k8/rentila-sync`)
+and `AZURE_WEBAPP_NAME: rentila-sync` — still a **TODO placeholder**, no such
+Azure Web App exists yet. **Do not** point it at Novagentic's existing Web
+App — this is a separate product and needs its own.
+
+Secrets live in this same GitHub repo's Actions secrets (shared store,
+`gh secret set <NAME>` from the repo root) — see "Getting started" for which
+`NUXT_*` names the workflow expects.
+
+## Security notes
+
+- Rotate any secret that's ever been pasted into a chat/terminal transcript
+  before relying on it long-term — this includes the Rentila `client_secret`
+  used during initial testing **and the Stripe live secret key**, which
+  matters more: it has real charging/refund/payout power on a real account,
+  not just read access to one landlord's property data.
+- **Prefer `sk_test_...` while building/testing the Checkout flow.** Run
+  `npm run stripe:setup` and exercise a full subscribe with Stripe's test
+  card numbers before ever pointing `NUXT_STRIPE_PRICE_ID` at a live-mode
+  price — the live key was used once already (to create the real €3/month
+  Product+Price, a low-risk/archivable action), but that doesn't mean
+  ongoing development should keep running against live mode.
+- `ENCRYPTION_KEY` must never be lost — losing it makes every stored
+  Rentila `client_secret` unrecoverable (there's no way to re-derive it,
+  by design). Same logic applies to `SESSION_PASSWORD` for existing sessions
+  (losing/rotating it just logs everyone out, lower stakes) — save both
+  somewhere durable (password manager), not only in GitHub Actions secrets,
+  which are **write-only**: once set, you can't read them back via `gh`/the
+  GitHub UI, only overwrite them.
