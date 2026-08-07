@@ -18,8 +18,19 @@
 #   bash scripts/push-app-settings.sh --pull              # pull Azure -> local .env
 #   bash scripts/push-app-settings.sh --pull --dry-run    # preview what --pull would change, no writes
 #
+# Shared by every app in this repo, not just Novagentic's own — Palier
+# (palier/, formerly rentila-sync/) runs as a second container on this same
+# Web App rather than its own (see ../azure-compose.yml), so its own
+# push:env/pull:env scripts (palier/package.json) already point at this same
+# AZURE_WEBAPP_NAME default; only ENV_FILE needs overriding for its own
+# .env:
+#   ENV_FILE=palier/.env bash scripts/push-app-settings.sh
+# Defaults below are Novagentic's own, for backward compat with its existing
+# npm run push:env/pull:env.
+#
 # Sourcing (push mode):
-#   - Local dev: reads NUXT_* keys from .env at the repo root.
+#   - Local dev: reads NUXT_* keys from $ENV_FILE (default: .env at the repo
+#     root — override with the ENV_FILE env var for a different app's .env).
 #   - CI: reads NUXT_* keys already exported in the environment (e.g. injected
 #     from GitHub Actions secrets via the workflow's `env:` block) — no .env
 #     file is required or expected there.
@@ -56,7 +67,7 @@ done
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null \
   || (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd))"
-ENV_FILE="$REPO_ROOT/.env"
+ENV_FILE="${ENV_FILE:-$REPO_ROOT/.env}"
 
 if $PULL; then
   if ! command -v az >/dev/null 2>&1; then

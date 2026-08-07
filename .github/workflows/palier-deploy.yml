@@ -1,0 +1,89 @@
+name: Deploy Palier (Apartment Accounting Product)
+
+# Separate pipeline for palier/ (formerly rentila-sync/) — own Dockerfile,
+# but no Web App of its own: it runs as a second container on the shared
+# "Novagentic" Web App (see ../azure-compose.yml), reachable at
+# palier.novagentic.fr via proxy/nginx.conf's Host-based routing. A crash in
+# this container only restarts this container (Docker's `restart: always`
+# in azure-compose.yml) — Novagentic keeps serving the whole time. This
+# workflow file is fully independent of novagentic-deploy.yml/
+# proxy-deploy.yml — a bad edit or failing job here can never block or fail
+# those.
+#
+# TODO before this can actually go live: the DNS CNAME for
+# palier.novagentic.fr doesn't exist yet, the hostname isn't bound to the
+# Web App, and NUXT_APP_URL/NUXT_BRIDGE_WEBHOOK_SECRET/
+# NUXT_STRIPE_WEBHOOK_SECRET aren't set (each needs that live URL first).
+# See palier/README.md "Status".
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "palier/**"
+  workflow_dispatch:
+    inputs:
+      build_only:
+        description: "Build + push the image only, skip applying azure-compose.yml/restarting the Web App (bootstrap use: get this image into GHCR before the first-ever compose switch, which needs all three images to already exist)"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write   # OIDC login to Azure
+  contents: read
+  packages: write   # push image to GHCR
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./palier
+          push: true
+          tags: |
+            ghcr.io/mehdi13k8/palier:${{ github.sha }}
+            ghcr.io/mehdi13k8/palier:latest
+
+  deploy:
+    needs: build
+    if: ${{ github.event.inputs.build_only != 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sync app settings
+        env:
+          NUXT_MONGODB_URI: ${{ secrets.NUXT_MONGODB_URI }}
+          NUXT_ENCRYPTION_KEY: ${{ secrets.NUXT_ENCRYPTION_KEY }}
+          NUXT_SESSION_PASSWORD: ${{ secrets.NUXT_SESSION_PASSWORD }}
+          NUXT_APP_URL: ${{ secrets.NUXT_APP_URL }}
+          NUXT_BRIDGE_CLIENT_ID: ${{ secrets.NUXT_BRIDGE_CLIENT_ID }}
+          NUXT_BRIDGE_CLIENT_SECRET: ${{ secrets.NUXT_BRIDGE_CLIENT_SECRET }}
+          NUXT_BRIDGE_WEBHOOK_SECRET: ${{ secrets.NUXT_BRIDGE_WEBHOOK_SECRET }}
+          NUXT_STRIPE_SECRET_KEY: ${{ secrets.NUXT_STRIPE_SECRET_KEY }}
+          NUXT_STRIPE_WEBHOOK_SECRET: ${{ secrets.NUXT_STRIPE_WEBHOOK_SECRET }}
+          NUXT_STRIPE_PRICE_ID: ${{ secrets.NUXT_STRIPE_PRICE_ID }}
+        run: bash scripts/push-app-settings.sh --skip-health-check
+
+      - name: Apply compose config + restart shared Web App
+        run: |
+          az webapp config container set \
+            --name Novagentic --resource-group Novagentic_group \
+            --multicontainer-config-type COMPOSE \
+            --multicontainer-config-file azure-compose.yml
+          az webapp restart --name Novagentic --resource-group Novagentic_group
