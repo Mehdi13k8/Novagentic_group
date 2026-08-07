@@ -1,19 +1,19 @@
 name: Deploy Palier (Apartment Accounting Product)
 
 # Separate pipeline for palier/ (formerly rentila-sync/) — own Dockerfile,
-# but no Web App of its own: it runs as a second container on the shared
-# "Novagentic" Web App (see ../azure-compose.yml), reachable at
-# palier.novagentic.fr via proxy/nginx.conf's Host-based routing. A crash in
-# this container only restarts this container (Docker's `restart: always`
-# in azure-compose.yml) — Novagentic keeps serving the whole time. This
-# workflow file is fully independent of novagentic-deploy.yml/
-# proxy-deploy.yml — a bad edit or failing job here can never block or fail
-# those.
+# but no Web App of its own: it runs as a sidecar container on the shared
+# "Novagentic" Web App (Azure sitecontainers mode — see ../README.md
+# "Deployment"), reachable at palier.novagentic.fr via proxy/nginx.conf's
+# Host-based routing. A crash in this container only restarts this
+# container — Novagentic keeps serving the whole time. This workflow file is
+# fully independent of novagentic-deploy.yml/proxy-deploy.yml — a bad edit
+# or failing job here can never block or fail those.
 #
-# TODO before this can actually go live: the DNS CNAME for
-# palier.novagentic.fr doesn't exist yet, the hostname isn't bound to the
-# Web App, and NUXT_APP_URL/NUXT_BRIDGE_WEBHOOK_SECRET/
-# NUXT_STRIPE_WEBHOOK_SECRET aren't set (each needs that live URL first).
+# Live since 2026-08-08: DNS CNAME, hostname binding, managed TLS cert and
+# NUXT_APP_URL are all in place. Still outstanding — the webhook receivers
+# are inert until these are set, since each needs the live URL registered on
+# the provider side first: NUXT_BRIDGE_WEBHOOK_SECRET and
+# NUXT_STRIPE_WEBHOOK_SECRET (empty in both GitHub secrets and Azure).
 # See palier/README.md "Status".
 
 on:
@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       build_only:
-        description: "Build + push the image only, skip applying azure-compose.yml/restarting the Web App (bootstrap use: get this image into GHCR before the first-ever compose switch, which needs all three images to already exist)"
+        description: "Build + push the image to GHCR only, without updating the sitecontainer (bootstrap use: get an image into GHCR before its sitecontainer resource points at it)"
         type: boolean
         default: false
 

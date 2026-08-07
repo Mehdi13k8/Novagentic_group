@@ -1,14 +1,13 @@
 name: Deploy Novagentic (marketing site)
 
 # Default/main workflow for this repo — builds the Novagentic marketing
-# site's image and pushes it live. Novagentic and Palier run as two
-# separate containers on the SAME "Novagentic" Web App (see
-# ../azure-compose.yml) rather than two Web Apps, so a crash in Palier's
-# container can't take Novagentic down with it — Docker restarts only the
-# container that crashed. What this file's deploy step CANNOT avoid: since
-# both containers live in one Web App/site process, applying a deploy here
-# still restarts the whole site (Palier's container included) for a few
-# seconds. This workflow file itself, though, is fully independent of
+# site's image and pushes it live. Novagentic and Palier run as two separate
+# sidecar containers on the SAME "Novagentic" Web App (Azure sitecontainers
+# mode — see ../README.md "Deployment") rather than two Web Apps, so a crash
+# in Palier's container can't take Novagentic down with it. The deploy step
+# PUTs only this app's own `sitecontainers/novagentic` resource, SHA-pinned,
+# so it no longer has to restart the whole site the way re-applying a shared
+# Compose file did. This workflow file is also fully independent of
 # palier-deploy.yml/proxy-deploy.yml — a bad edit or failing job in either
 # of those can never block or fail this one.
 
@@ -21,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       build_only:
-        description: "Build + push the image only, skip applying azure-compose.yml/restarting the Web App (bootstrap use: get this image into GHCR before the first-ever compose switch, which needs all three images to already exist)"
+        description: "Build + push the image to GHCR only, without updating the sitecontainer (bootstrap use: get an image into GHCR before its sitecontainer resource points at it)"
         type: boolean
         default: false
 

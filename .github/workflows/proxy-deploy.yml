@@ -1,23 +1,25 @@
 name: Deploy proxy (shared Web App front door)
 
-# Builds proxy/ (nginx) — the only container Azure routes internet traffic
-# to on the shared "Novagentic" Web App; it host-routes to whichever of
-# novagentic/palier the request is actually for (see proxy/nginx.conf).
-# Rarely changes, hence its own small workflow rather than folding into
-# novagentic-deploy.yml or palier-deploy.yml — independent here too, same
-# reasoning as those two: a break in this file can't block either app's own
-# pipeline, and vice versa.
+# Builds proxy/ (nginx) — the `isMain: true` sitecontainer, and so the only
+# container Azure routes internet traffic to on the shared "Novagentic" Web
+# App; it host-routes to whichever of novagentic/palier the request is
+# actually for (see proxy/nginx.conf). Rarely changes, hence its own small
+# workflow rather than folding into novagentic-deploy.yml or
+# palier-deploy.yml — independent here too, same reasoning as those two: a
+# break in this file can't block either app's own pipeline, and vice versa.
+#
+# Careful: this is the container that serves *every* hostname on the Web App.
+# A broken image here takes novagentic.fr down too, not just Palier.
 
 on:
   push:
     branches: ["main"]
     paths:
       - "proxy/**"
-      - "azure-compose.yml"
   workflow_dispatch:
     inputs:
       build_only:
-        description: "Build + push the image only, skip applying azure-compose.yml/restarting the Web App (bootstrap use: get this image into GHCR before the first-ever compose switch, which needs all three images to already exist)"
+        description: "Build + push the image to GHCR only, without updating the sitecontainer (bootstrap use: get an image into GHCR before its sitecontainer resource points at it)"
         type: boolean
         default: false
 

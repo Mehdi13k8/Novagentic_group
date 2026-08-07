@@ -19,8 +19,8 @@
 #   bash scripts/push-app-settings.sh --pull --dry-run    # preview what --pull would change, no writes
 #
 # Shared by every app in this repo, not just Novagentic's own — Palier
-# (palier/, formerly rentila-sync/) runs as a second container on this same
-# Web App rather than its own (see ../azure-compose.yml), so its own
+# (palier/, formerly rentila-sync/) runs as a sidecar container on this same
+# Web App rather than its own (see ../README.md "Deployment"), so its own
 # push:env/pull:env scripts (palier/package.json) already point at this same
 # AZURE_WEBAPP_NAME default; only ENV_FILE needs overriding for its own
 # .env:

@@ -13,16 +13,22 @@ with the marketing site was not — run this folder's `npm install`/`npm run
 dev` independently of the repo root's.
 
 **Shares the marketing site's Web App**, though — deliberately, to avoid
-paying for a second App Service Plan: it runs as its own container
-alongside Novagentic's on the one `Novagentic` Web App (see
-`../azure-compose.yml`), reachable at `palier.novagentic.fr` via
+paying for a second App Service Plan: it runs as a sidecar container
+alongside Novagentic's on the one `Novagentic` Web App (Azure
+**sitecontainers** mode), reachable at `palier.novagentic.fr` via
 `../proxy/nginx.conf`'s Host-based routing rather than a dedicated Web App.
-`restart: always` per container in the compose file is what still gets you
-crash isolation despite sharing: if this app's process crashes, Docker
-restarts only this container — Novagentic keeps serving the whole time. A
-*deploy* of either app, however, restarts the whole Web App (all
-containers) for a few seconds, since they're one site process under the
-hood — see root `README.md` "Deployment" for the full trade-off.
+You still get crash isolation despite sharing: if this app's process
+crashes, only this container restarts — Novagentic keeps serving. See root
+`README.md` "Deployment" for the full trade-off.
+
+Two things this mode imposes on **this app specifically**:
+
+- It listens on **3001**, not 3000 (`NITRO_PORT` in `Dockerfile`). All
+  sidecars share one localhost network namespace, so ports must be unique
+  across the whole Web App — 3000 is Novagentic's.
+- Its Application Settings are **not private to it**. Every container on the
+  Web App sees all of them, so treat `NUXT_MONGODB_URI`, `NUXT_STRIPE_*`
+  etc. as shared with the marketing site's container.
 
 Each app still has its own workflow file under `../.github/workflows/` —
 `palier-deploy.yml` for this app, `novagentic-deploy.yml` for the marketing
@@ -35,7 +41,11 @@ the other two's runs.
 Full design context, decisions, and reasoning live in the plan doc this was
 built from: `~/.claude/plans/reading-the-context-of-wild-ripple.md`.
 
-## Status: early scaffold, not deployed
+## Status: deployed, feature-incomplete
+
+Live at **https://palier.novagentic.fr** since 2026-08-08 (see "Deployment"
+for how the cutover worked). `/api/health` reports Mongo connected and
+Bridge/Stripe/encryption/session config all present.
 
 What's real and working:
 - Mongoose models with the required unique-index/atomic-claim safety
@@ -98,6 +108,17 @@ What's real and working:
   `checkout.stripe.com` session URL.
 
 What's stubbed / missing:
+- **Both webhook receivers are inert in production.**
+  `NUXT_BRIDGE_WEBHOOK_SECRET` and `NUXT_STRIPE_WEBHOOK_SECRET` are empty in
+  Azure *and* unset as GitHub secrets, so signature verification can't pass.
+  Each needs the endpoint registered on the provider side first — Stripe
+  dashboard → `https://palier.novagentic.fr/api/webhooks/stripe`, Bridge →
+  `https://palier.novagentic.fr/api/webhooks/bridge` — which is what issues
+  the signing secret. Until then subscription status changes and
+  `item.created` bank-connection events never land. Set the **GitHub
+  secret**, not just the Azure setting: `push-app-settings.sh` pushes every
+  exported `NUXT_*` var on each deploy, so an unset GitHub secret overwrites
+  the Azure value with an empty string.
 - **Email delivery.** `notifyLandlord()` in `server/utils/reconcile.ts` and
   the password-reset link in `server/api/auth/forgot-password.post.ts` both
   currently just log to the server console instead of sending anything —
@@ -298,25 +319,49 @@ crash in this app's build/deploy can't touch the marketing site's pipeline
 since they're separate files.
 
 Where it deploys *to*, though, is deliberately shared: this app's job
-pushes `ghcr.io/mehdi13k8/palier` and then re-applies
-`../azure-compose.yml` to Novagentic's existing Web App (`AZURE_WEBAPP_NAME`
-defaults to `Novagentic` — see `push-app-settings.sh`) rather than standing
-up a separate Web App for this product. That's intentional: this app runs
-as its own container next to Novagentic's on that one Web App, so it's
-still crash-isolated (a Docker `restart: always` per container) without a
-second App Service Plan to pay for. **TODO placeholders before this can go
-live**: no DNS record for `palier.novagentic.fr` exists yet (see root
-`README.md` "Custom domains"), and — more importantly — **the live Web App
-is still single-container** (running Novagentic only). The very first of
-these three workflows to run its deploy step in CI will flip it into
-multi-container mode by applying `azure-compose.yml`, which references
-`ghcr.io/mehdi13k8/palier:latest` and `ghcr.io/mehdi13k8/novagentic-proxy:latest`
-— if either doesn't exist in GHCR yet at that point, the live site (including
-Novagentic) breaks. **Do not just merge this to `main` and let CI run
-normally** — bootstrap manually first: build+push all three images at least
-once (e.g. `workflow_dispatch` each of the three workflows once, in any
-order, from this branch or right after merging) so all three tags exist in
-GHCR *before* any deploy job applies the compose config for the first time.
+pushes `ghcr.io/mehdi13k8/palier` and then `PUT`s the
+`sitecontainers/palier` resource on Novagentic's existing Web App
+(`AZURE_WEBAPP_NAME` defaults to `Novagentic` — see `push-app-settings.sh`)
+rather than standing up a separate Web App for this product. The image is
+pinned to the commit SHA, and only this app's own sitecontainer resource is
+touched, so a deploy here doesn't disturb the other two containers.
+
+**This went live on 2026-08-08.** For the record, the cutover needed the
+following one-time steps, none of which are in CI (they should never run
+twice):
+
+1. All three images had to exist in GHCR, and their packages had to be
+   **public** — the sitecontainers use anonymous pull, with no registry
+   credentials configured.
+2. All three `sitecontainers/<name>` resources had to exist, with exactly
+   one `isMain: true` (the proxy). A leftover `main` sitecontainer, created
+   automatically when the Web App was first provisioned and pointing at
+   `mcr.microsoft.com/appsvc/staticsite:latest`, also had `isMain: true` and
+   had to be deleted first.
+3. The Web App had to be switched out of classic single-container mode:
+
+   ```bash
+   az webapp config set -g Novagentic_group -n Novagentic \
+     --linux-fx-version "sitecontainers"
+   az webapp restart -g Novagentic_group -n Novagentic
+   ```
+
+   Note the `az webapp sitecontainers convert --mode sitecontainers` helper
+   does **not** work here: it tries to migrate the existing `DOCKER|<image>`
+   into a *new* `main` sitecontainer with `isMain: true`, which collides with
+   the proxy and fails with `SiteContainer 'proxy' with isMain=true already
+   exists`. Setting `linuxFxVersion` directly is the documented manual path.
+4. `palier.novagentic.fr` had to be bound to the Web App with a certificate
+   — the DNS CNAME alone is not enough; without a binding the hostname fails
+   TLS. `az webapp config hostname add`, then
+   `az webapp config ssl create --hostname palier.novagentic.fr` (free
+   App Service managed certificate), then `az webapp config ssl bind
+   --ssl-type SNI`.
+
+To roll back to single-container mode, set `--linux-fx-version` back to
+`DOCKER|ghcr.io/mehdi13k8/novagentic:<sha>`. That leaves the sitecontainer
+resources in place, unlike `az webapp sitecontainers convert --mode docker`,
+which deletes them all.
 
 Secrets live in this same GitHub repo's Actions secrets (shared store,
 `gh secret set <NAME>` from the repo root) — see "Getting started" for which
