@@ -34,6 +34,30 @@ async function logout() {
           {{ health?.mongo ?? 'unknown' }}
         </span>
       </p>
+      <p>
+        Bridge:
+        <span :class="health?.bridge === 'configured' ? 'text-green-600' : 'text-amber-600'">
+          {{ health?.bridge ?? 'unknown' }}
+        </span>
+      </p>
+      <p>
+        Stripe:
+        <span :class="health?.stripe === 'configured' ? 'text-green-600' : 'text-amber-600'">
+          {{ health?.stripe ?? 'unknown' }}
+        </span>
+      </p>
+      <p>
+        Encryption key:
+        <span :class="health?.encryptionKey === 'configured' ? 'text-green-600' : 'text-amber-600'">
+          {{ health?.encryptionKey ?? 'unknown' }}
+        </span>
+      </p>
+      <p>
+        Session password:
+        <span :class="health?.sessionPassword === 'configured' ? 'text-green-600' : 'text-amber-600'">
+          {{ health?.sessionPassword ?? 'unknown' }}
+        </span>
+      </p>
     </div>
 
     <div class="rounded-lg border border-neutral-200 p-4 text-sm">
