@@ -59,10 +59,9 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Apply compose config + restart shared Web App
+      - name: Update proxy sitecontainer
         run: |
-          az webapp config container set \
-            --name Novagentic --resource-group Novagentic_group \
-            --multicontainer-config-type COMPOSE \
-            --multicontainer-config-file azure-compose.yml
-          az webapp restart --name Novagentic --resource-group Novagentic_group
+          SUB_ID=$(az account show --query id -o tsv)
+          az rest --method PUT \
+            --url "https://management.azure.com/subscriptions/$SUB_ID/resourceGroups/Novagentic_group/providers/Microsoft.Web/sites/Novagentic/sitecontainers/proxy?api-version=2023-12-01" \
+            --body '{"properties":{"image":"ghcr.io/mehdi13k8/novagentic-proxy:${{ github.sha }}","isMain":true,"targetPort":80}}'
