@@ -69,7 +69,7 @@ async function unlink(txId: string) {
          tells you which payments to go mark as paid in Rentila yourself. -->
     <div
       v-if="data?.newMatchesCount"
-      class="rounded-lg border border-green-500/40 bg-green-500/10 p-4 text-sm"
+      class="rounded-lg border border-(--color-ok-text)/40 bg-(--color-ok-text)/10 p-4 text-sm"
     >
       <p class="font-medium text-(--color-fg)">
         🔔 {{ data.newMatchesCount }} new match{{ data.newMatchesCount > 1 ? 'es' : '' }} in the last 24h
@@ -108,7 +108,7 @@ async function unlink(txId: string) {
               <td class="px-4 py-3">
                 <template v-if="tx.match">
                   <div class="flex items-center gap-2">
-                    <span v-if="tx.matchedRecently" class="rounded bg-green-500/20 px-1.5 py-0.5 text-xs text-green-500">New</span>
+                    <span v-if="tx.matchedRecently" class="rounded bg-(--color-ok-text)/20 px-1.5 py-0.5 text-xs text-(--color-ok-text)">New</span>
                     <span>{{ tx.match.tenant ?? '—' }} · {{ tx.match.property ?? '—' }}</span>
                   </div>
                   <div class="mt-1 flex items-center gap-3">
@@ -161,12 +161,12 @@ async function unlink(txId: string) {
                   </select>
                   <button
                     :disabled="!selectedPaymentId || busyId === tx.id"
-                    class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                    class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
                     @click="confirmLink(tx.id)"
                   >
                     {{ busyId === tx.id ? 'Linking…' : 'Confirm link' }}
                   </button>
-                  <p v-if="linkError" class="text-sm text-red-500">{{ linkError }}</p>
+                  <p v-if="linkError" class="text-sm text-(--color-danger-text)">{{ linkError }}</p>
                 </div>
               </td>
             </tr>

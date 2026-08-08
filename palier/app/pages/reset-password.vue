@@ -32,7 +32,7 @@ async function onSubmit() {
   <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6 py-16">
     <h1 class="display text-2xl">Choose a new password</h1>
 
-    <p v-if="!token" class="text-sm text-red-500">
+    <p v-if="!token" class="text-sm text-(--color-danger-text)">
       Missing reset token — use the link from the email (or dev server log).
     </p>
 
@@ -63,12 +63,12 @@ async function onSubmit() {
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
 
-      <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
+      <p v-if="error" class="text-sm text-(--color-danger-text)">{{ error }}</p>
 
       <button
         type="submit"
         :disabled="loading || !token"
-        class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+        class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
       >
         {{ loading ? 'Saving…' : 'Set new password' }}
       </button>

@@ -125,7 +125,7 @@ async function syncEnableBanking() {
     <section class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
       <div class="flex items-center justify-between">
         <p class="eyebrow">Rentila</p>
-        <span v-if="org?.rentila.connected" class="text-sm text-green-500">Connected</span>
+        <span v-if="org?.rentila.connected" class="text-sm text-(--color-ok-text)">Connected</span>
       </div>
 
       <template v-if="org?.rentila.connected">
@@ -146,7 +146,7 @@ async function syncEnableBanking() {
         <p class="mt-2 text-sm text-(--color-fg-soft)">
           Rentila doesn't offer a "Connect account" redirect for third-party apps.
         </p>
-        <div class="mt-3 rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+        <div class="mt-3 rounded border border-(--color-signal-text)/40 bg-(--color-signal-text)/10 p-3 text-sm">
           <p class="text-(--color-fg)">
             <strong>Not your Rentila login.</strong> Client ID/secret is a separate API
             key pair — different from the email/password you use to sign in at rentila.com.
@@ -198,7 +198,7 @@ async function syncEnableBanking() {
             >
           </label>
           <p class="text-xs text-(--color-fg-soft)">Stored encrypted, never shown again.</p>
-          <p v-if="rentilaError" class="text-sm text-red-500">
+          <p v-if="rentilaError" class="text-sm text-(--color-danger-text)">
             {{ rentilaError }}
             <template v-if="rentilaError.includes('client ID/secret')">
               — double-check you pasted the API Client ID/secret from Rentila, not your
@@ -208,7 +208,7 @@ async function syncEnableBanking() {
           <button
             type="submit"
             :disabled="rentilaConnecting"
-            class="rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            class="rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
           >
             {{ rentilaConnecting ? 'Connecting…' : 'Connect Rentila' }}
           </button>
@@ -220,7 +220,7 @@ async function syncEnableBanking() {
     <section class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
       <div class="flex items-center justify-between">
         <p class="eyebrow">Bank account</p>
-        <span v-if="org?.bridge.connected" class="text-sm text-green-500">Connected</span>
+        <span v-if="org?.bridge.connected" class="text-sm text-(--color-ok-text)">Connected</span>
       </div>
 
       <template v-if="org?.bridge.connected">
@@ -236,7 +236,7 @@ async function syncEnableBanking() {
         </p>
         <button
           :disabled="bridgeConnecting"
-          class="mt-3 rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          class="mt-3 rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
           @click="connectBank"
         >
           {{ bridgeConnecting ? 'Redirecting…' : 'Connect a bank account' }}
@@ -248,7 +248,7 @@ async function syncEnableBanking() {
     <section class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
       <div class="flex items-center justify-between">
         <p class="eyebrow">Bank account (fast connect)</p>
-        <span v-if="org?.enablebanking.connected" class="text-sm text-green-500">Connected</span>
+        <span v-if="org?.enablebanking.connected" class="text-sm text-(--color-ok-text)">Connected</span>
       </div>
 
       <template v-if="org?.enablebanking.connected">
@@ -263,14 +263,14 @@ async function syncEnableBanking() {
         >
           {{ ebSyncing ? 'Syncing…' : 'Sync now' }}
         </button>
-        <p v-if="ebError" class="mt-2 text-sm text-red-500">{{ ebError }}</p>
+        <p v-if="ebError" class="mt-2 text-sm text-(--color-danger-text)">{{ ebError }}</p>
       </template>
       <template v-else>
         <p class="mt-2 text-sm text-(--color-fg-soft)">
           Stopgap while Bridge's production KYB is pending — same redirect-to-your-bank's-own-login
           flow, we never see your credentials, just a different aggregator underneath.
         </p>
-        <div class="mt-3 rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-(--color-fg)">
+        <div class="mt-3 rounded border border-(--color-signal-text)/40 bg-(--color-signal-text)/10 p-3 text-sm text-(--color-fg)">
           Only works for accounts you connect yourself here (Enable Banking's "Restricted
           Production" mode) — not a general substitute for Bridge yet.
         </div>
@@ -286,11 +286,11 @@ async function syncEnableBanking() {
               <option v-for="a in ebAspsps" :key="a.name" :value="a.name">{{ a.name }}</option>
             </select>
           </label>
-          <p v-if="ebError" class="text-sm text-red-500">{{ ebError }}</p>
+          <p v-if="ebError" class="text-sm text-(--color-danger-text)">{{ ebError }}</p>
           <button
             type="submit"
             :disabled="ebConnecting || !ebSelectedAspsp"
-            class="rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            class="rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
           >
             {{ ebConnecting ? 'Redirecting…' : 'Connect a bank account' }}
           </button>

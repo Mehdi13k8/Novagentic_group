@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+const { locale, t } = useLocale()
 useScrollReveal()
 
 const route = useRoute()
@@ -118,7 +119,7 @@ useHead({
 })
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('fr-FR', {
+  return new Date(date).toLocaleDateString(locale.value === 'en' ? 'en-GB' : 'fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',

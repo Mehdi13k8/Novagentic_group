@@ -45,7 +45,7 @@ function formatDate(d: string) {
             <td class="px-4 py-3">
               <span
                 class="rounded px-1.5 py-0.5 text-xs"
-                :class="p.kind === 'rent' ? 'bg-(--color-cobalt)/20 text-(--color-cobalt)' : 'bg-red-500/20 text-red-500'"
+                :class="p.kind === 'rent' ? 'bg-(--color-cobalt)/20 text-(--color-cobalt)' : 'bg-(--color-danger-text)/20 text-(--color-danger-text)'"
               >
                 {{ p.kind === 'rent' ? 'Rent' : 'Expense' }}
               </span>
@@ -58,9 +58,9 @@ function formatDate(d: string) {
             <td class="px-4 py-3">
               <span
                 :class="{
-                  'text-green-500': p.status === 'paid',
+                  'text-(--color-ok-text)': p.status === 'paid',
                   'text-(--color-signal)': p.status === 'pending' || p.status === 'partial',
-                  'text-red-500': p.status === 'lost',
+                  'text-(--color-danger-text)': p.status === 'lost',
                 }"
               >
                 {{ p.status }}

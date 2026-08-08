@@ -4,11 +4,10 @@
 
     <section class="border-b border-[color:var(--color-line)] px-6 pt-32 pb-16">
       <div class="mx-auto max-w-3xl">
-        <p class="eyebrow reveal text-[color:var(--color-cobalt)]">Journal</p>
-        <h1 class="display reveal mt-3 text-5xl" style="transition-delay: 0.08s">Blog</h1>
+        <p class="eyebrow reveal text-[color:var(--color-cobalt)]">{{ t('blog.eyebrow') }}</p>
+        <h1 class="display reveal mt-3 text-5xl" style="transition-delay: 0.08s">{{ t('blog.title') }}</h1>
         <p class="reveal mt-4 max-w-2xl leading-relaxed text-[color:var(--color-fg-soft)]" style="transition-delay: 0.16s">
-          Ce qu'on note pendant qu'on construit : pipelines data, automatisations,
-          et les décisions techniques qu'on aurait prises autrement.
+          {{ t('blog.index.lede') }}
         </p>
       </div>
     </section>
@@ -16,7 +15,7 @@
     <section class="px-6 py-16">
       <div class="mx-auto max-w-3xl divide-y divide-[color:var(--color-line)]">
         <p v-if="!posts?.length" class="coords py-8 text-[color:var(--color-fg-soft)]">
-          Rien ici pour l'instant. Le premier article arrive bientôt.
+          {{ t('blog.empty') }}
         </p>
 
         <NuxtLink
@@ -41,9 +40,13 @@
 </template>
 
 <script setup lang="ts">
+const { locale, t } = useLocale()
 useScrollReveal()
 
 const title = 'Blog — Novagentic'
+// Meta figée en français : c'est la version indexée (pas d'URL par langue,
+// voir useAppearance.ts) — un changement de langue côté visiteur ne doit pas
+// réécrire la description que les moteurs ont déjà.
 const description = "Ce qu'on note pendant qu'on construit : pipelines data, automatisations, et les décisions techniques qu'on aurait prises autrement."
 const url = 'https://novagentic.fr/blog'
 
@@ -67,7 +70,7 @@ const { data: posts } = await useAsyncData('blog-list', () =>
 )
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('fr-FR', {
+  return new Date(date).toLocaleDateString(locale.value === 'en' ? 'en-GB' : 'fr-FR', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',

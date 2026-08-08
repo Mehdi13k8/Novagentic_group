@@ -17,7 +17,7 @@ definePageMeta({ middleware: 'auth', layout: 'dashboard' })
       <NuxtLink to="/dashboard/integrations" class="underline">Integrations</NuxtLink>
       — refresh if it still shows "Not connected" after a moment.
     </p>
-    <NuxtLink to="/dashboard/integrations" class="mt-2 w-fit rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-white">
+    <NuxtLink to="/dashboard/integrations" class="mt-2 w-fit rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt)">
       Back to Integrations
     </NuxtLink>
   </div>

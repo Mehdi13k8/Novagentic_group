@@ -4,7 +4,7 @@
     <p class="text-sm text-(--color-fg-soft)">
       Thanks — your subscription is set up.
     </p>
-    <NuxtLink to="/dashboard" class="mt-2 inline-block rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-white">
+    <NuxtLink to="/dashboard" class="mt-2 inline-block rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt)">
       Go to dashboard
     </NuxtLink>
   </main>

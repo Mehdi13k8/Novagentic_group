@@ -47,12 +47,12 @@ async function onSubmit() {
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
 
-      <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
+      <p v-if="error" class="text-sm text-(--color-danger-text)">{{ error }}</p>
 
       <button
         type="submit"
         :disabled="loading"
-        class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+        class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
       >
         {{ loading ? 'Logging in…' : 'Log in' }}
       </button>

@@ -1,13 +1,14 @@
 <script setup lang="ts">
 const { user, clear } = useUserSession()
 const route = useRoute()
+const { t } = useLocale()
 
 const links = [
-  { to: '/dashboard', label: 'Overview' },
-  { to: '/dashboard/integrations', label: 'Integrations' },
-  { to: '/dashboard/payments', label: 'Payments' },
-  { to: '/dashboard/virements', label: 'Virements' },
-  { to: '/dashboard/accounting', label: 'Accounting' },
+  { to: '/dashboard', key: 'nav.dashboard' },
+  { to: '/dashboard/integrations', key: 'nav.integrations' },
+  { to: '/dashboard/payments', key: 'nav.payments' },
+  { to: '/dashboard/virements', key: 'nav.virements' },
+  { to: '/dashboard/accounting', key: 'nav.accounting' },
 ]
 
 async function logout() {
@@ -20,9 +21,9 @@ async function logout() {
 <template>
   <div class="min-h-screen bg-(--color-bg) text-(--color-fg)">
     <header class="border-b border-(--color-line)">
-      <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
         <NuxtLink to="/dashboard" class="display text-lg">Palier</NuxtLink>
-        <nav class="flex items-center gap-6">
+        <nav class="flex flex-wrap items-center gap-x-6 gap-y-2">
           <NuxtLink
             v-for="link in links"
             :key="link.to"
@@ -30,13 +31,14 @@ async function logout() {
             class="eyebrow transition-colors hover:text-(--color-fg)"
             :class="route.path === link.to ? 'text-(--color-fg)' : 'text-(--color-fg-soft)'"
           >
-            {{ link.label }}
+            {{ t(link.key) }}
           </NuxtLink>
         </nav>
         <div class="flex items-center gap-4">
-          <span class="eyebrow text-(--color-fg-soft)">{{ user?.email }}</span>
+          <AppearanceControls />
+          <span class="eyebrow hidden text-(--color-fg-soft) lg:inline">{{ user?.email }}</span>
           <button class="eyebrow text-(--color-fg-soft) hover:text-(--color-fg)" @click="logout">
-            Log out
+            {{ t('nav.logout') }}
           </button>
         </div>
       </div>

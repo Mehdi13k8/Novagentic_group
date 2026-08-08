@@ -28,7 +28,7 @@ onActivated(() => refresh())
     <NuxtLink
       v-if="transactions?.newMatchesCount"
       to="/dashboard/virements"
-      class="rounded-lg border border-green-500/40 bg-green-500/10 p-5 text-sm transition-colors hover:border-green-500"
+      class="rounded-lg border border-(--color-ok-text)/40 bg-(--color-ok-text)/10 p-5 text-sm transition-colors hover:border-(--color-ok-text)"
     >
       <p class="font-medium text-(--color-fg)">
         🔔 {{ transactions.newMatchesCount }} new rent payment match{{ transactions.newMatchesCount > 1 ? 'es' : '' }}
@@ -44,8 +44,8 @@ onActivated(() => refresh())
           class="font-medium"
           :class="{
             'text-(--color-signal)': org?.plan === 'trial',
-            'text-green-500': org?.plan === 'active',
-            'text-red-500': org?.plan === 'canceled',
+            'text-(--color-ok-text)': org?.plan === 'active',
+            'text-(--color-danger-text)': org?.plan === 'canceled',
           }"
         >
           {{ org?.plan }}
@@ -57,7 +57,7 @@ onActivated(() => refresh())
       <button
         v-if="org?.plan !== 'active'"
         :disabled="subscribing"
-        class="mt-3 rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        class="mt-3 rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
         @click="subscribe"
       >
         {{ subscribing ? 'Redirecting…' : 'Subscribe — €3/month' }}
@@ -71,7 +71,7 @@ onActivated(() => refresh())
       >
         <p class="eyebrow">Rentila</p>
         <p class="mt-2 text-sm">
-          <span :class="org?.rentila.connected ? 'text-green-500' : 'text-(--color-fg-soft)'">
+          <span :class="org?.rentila.connected ? 'text-(--color-ok-text)' : 'text-(--color-fg-soft)'">
             {{ org?.rentila.connected ? 'Connected' : 'Not connected' }}
           </span>
         </p>
@@ -83,7 +83,7 @@ onActivated(() => refresh())
       >
         <p class="eyebrow">Bank (Bridge)</p>
         <p class="mt-2 text-sm">
-          <span :class="org?.bridge.connected ? 'text-green-500' : 'text-(--color-fg-soft)'">
+          <span :class="org?.bridge.connected ? 'text-(--color-ok-text)' : 'text-(--color-fg-soft)'">
             {{ org?.bridge.connected ? 'Connected' : 'Not connected' }}
           </span>
         </p>
@@ -95,7 +95,7 @@ onActivated(() => refresh())
       >
         <p class="eyebrow">Bank (Enable Banking)</p>
         <p class="mt-2 text-sm">
-          <span :class="org?.enablebanking.connected ? 'text-green-500' : 'text-(--color-fg-soft)'">
+          <span :class="org?.enablebanking.connected ? 'text-(--color-ok-text)' : 'text-(--color-fg-soft)'">
             {{ org?.enablebanking.connected ? `Connected — ${org.enablebanking.aspspName}` : 'Not connected' }}
           </span>
         </p>
