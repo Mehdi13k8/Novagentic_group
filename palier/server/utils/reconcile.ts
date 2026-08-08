@@ -291,14 +291,28 @@ export async function syncOrgTransactions(org: HydratedDocument<OrganizationDoc>
  * just a sweep backstop, so callers should run it right after connect too
  * (see server/api/enablebanking/callback.get.ts), not only on the schedule.
  */
-export async function syncOrgEnableBankingTransactions(org: HydratedDocument<OrganizationDoc>): Promise<{ rateLimited: boolean }> {
+export async function syncOrgEnableBankingTransactions(
+  org: HydratedDocument<OrganizationDoc>,
+  { days = 7 }: { days?: number } = {},
+): Promise<{ rateLimited: boolean }> {
   if (!org.enablebanking.sessionId || !org.enablebanking.accountUids?.length) return { rateLimited: false }
 
   const config = useRuntimeConfig()
   const client = createEnableBankingClient(enableBankingCredentialsFromConfig(config))
 
-  // Same 7-day slack as Bridge's sweep, for the same reason.
-  const dateFrom = new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString().slice(0, 10)
+  // Default 7 days: same slack as Bridge's sweep, for the same reason —
+  // the recurring poll only needs to cover what could have landed (or been
+  // amended from PDNG to BOOK) since the last one.
+  //
+  // The FIRST sync after a connect must NOT use that default, though: it's
+  // the only chance to pull history that predates the consent, and without
+  // it the dashboard shows a near-empty "Virements reçus" list on day one
+  // (observed: 42 lines ingested, exactly 1 of them a credit — the rest
+  // were card debits, which that view filters out by design). Callers pass
+  // a wider window for that; see callback.get.ts. PSD2 entitles the user to
+  // ~90 days of history without a fresh SCA, and banks cap it themselves
+  // anyway, so asking for more than they allow just returns what they have.
+  const dateFrom = new Date(Date.now() - 1000 * 60 * 60 * 24 * days).toISOString().slice(0, 10)
 
   for (const accountUid of org.enablebanking.accountUids) {
     let continuationKey: string | undefined

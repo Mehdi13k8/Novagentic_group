@@ -12,6 +12,7 @@
     "stripe:setup": "node --env-file=.env scripts/stripe-setup.mjs",
     "reset:bridge-user": "node --env-file=.env scripts/reset-bridge-user.mjs",
     "probe:enablebanking": "node --env-file=.env scripts/probe-enablebanking.mjs",
+    "virements": "node --env-file=.env scripts/fetch-virements.mjs",
     "push:env:dry-run": "AZURE_WEBAPP_NAME=Novagentic HEALTH_URL=https://palier.novagentic.fr/api/health ENV_FILE=$PWD/.env bash ../scripts/push-app-settings.sh --dry-run",
     "push:env": "AZURE_WEBAPP_NAME=Novagentic HEALTH_URL=https://palier.novagentic.fr/api/health ENV_FILE=$PWD/.env bash ../scripts/push-app-settings.sh",
     "pull:env:dry-run": "AZURE_WEBAPP_NAME=Novagentic ENV_FILE=$PWD/.env bash ../scripts/push-app-settings.sh --pull --dry-run",

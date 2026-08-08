@@ -52,7 +52,11 @@ export default defineEventHandler(async (event) => {
 
   // Best-effort initial pull, same "don't fail the connect on this" pattern
   // as Rentila's connect route — the scheduled sweep will pick it up too.
-  await syncOrgEnableBankingTransactions(org).catch(() => null)
+  //
+  // 90 days, not the sweep's default 7: this is the one moment we can pull
+  // history from before the consent existed, and the sweep never looks back
+  // that far again. Whatever the bank caps it at is what we get.
+  await syncOrgEnableBankingTransactions(org, { days: 90 }).catch(() => null)
 
   return sendRedirect(event, '/dashboard/integrations?bank=connected')
 })
