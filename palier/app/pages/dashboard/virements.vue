@@ -1,11 +1,12 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
+const { locale, t } = useLocale()
 const { data, refresh } = await useFetch('/api/transactions')
 const { data: unmatchedPayments, refresh: refreshUnmatched } = await useFetch('/api/payments/unmatched')
 
 function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('fr-FR')
+  return new Date(d).toLocaleDateString(locale.value === 'en' ? 'en-GB' : 'fr-FR')
 }
 
 const providerLabel: Record<string, string> = { bridge: 'Bridge', enablebanking: 'Enable Banking' }
@@ -35,7 +36,7 @@ async function confirmLink(txId: string) {
     linkingId.value = null
     await Promise.all([refresh(), refreshUnmatched()])
   } catch (err: any) {
-    linkError.value = err?.data?.statusMessage || 'Could not link'
+    linkError.value = err?.data?.statusMessage || t('vir.linkFailed')
   } finally {
     busyId.value = null
   }
@@ -55,12 +56,10 @@ async function unlink(txId: string) {
 <template>
   <div class="flex flex-col gap-8">
     <div>
-      <p class="eyebrow">Bank account</p>
-      <h1 class="display mt-1 text-3xl">Virements reçus</h1>
+      <p class="eyebrow">{{ t('dash.bankAccount') }}</p>
+      <h1 class="display mt-1 text-3xl">{{ t('vir.title') }}</h1>
       <p class="mt-2 text-sm text-(--color-fg-soft)">
-        Incoming transfers into your connected bank account(s), most recent first — and
-        whether each one has been matched to a Rentila rent payment. Missed one? Link it
-        yourself below.
+        {{ t('vir.lede') }}
       </p>
     </div>
 
@@ -72,30 +71,28 @@ async function unlink(txId: string) {
       class="rounded-lg border border-(--color-ok-text)/40 bg-(--color-ok-text)/10 p-4 text-sm"
     >
       <p class="font-medium text-(--color-fg)">
-        🔔 {{ data.newMatchesCount }} new match{{ data.newMatchesCount > 1 ? 'es' : '' }} in the last 24h
+        🔔 {{ data.newMatchesCount }} {{ data.newMatchesCount > 1 ? t('vir.alertN') : t('vir.alert1') }}
       </p>
       <p class="mt-1 text-(--color-fg-soft)">
-        These transfers were just linked to a pending rent payment below — Rentila's own API
-        can't be updated automatically (it's read-only), so mark them paid there yourself via
-        the "Open in Rentila" link.
+        {{ t('vir.alertBody') }}
       </p>
     </div>
 
     <p v-if="!data?.items?.length" class="text-sm text-(--color-fg-soft)">
-      No incoming transfers yet — connect a bank account from
-      <NuxtLink to="/dashboard/integrations" class="underline">Integrations</NuxtLink>
-      and sync, or check back after the next automatic sync (every 30 minutes).
+      {{ t('vir.empty') }}
+      <NuxtLink to="/dashboard/integrations" class="underline">{{ t('nav.integrations') }}</NuxtLink>
+      {{ t('vir.empty2') }}
     </p>
 
     <div v-else class="overflow-x-auto rounded-lg border border-(--color-line)">
       <table class="w-full text-left text-sm">
         <thead class="border-b border-(--color-line) text-(--color-fg-soft)">
           <tr>
-            <th class="px-4 py-3 font-normal">Date</th>
-            <th class="px-4 py-3 font-normal">Description</th>
-            <th class="px-4 py-3 font-normal">Amount</th>
-            <th class="px-4 py-3 font-normal">Bank</th>
-            <th class="px-4 py-3 font-normal">Matched rent payment</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.date') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.description') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.amount') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.bank') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.matchedRent') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -108,7 +105,7 @@ async function unlink(txId: string) {
               <td class="px-4 py-3">
                 <template v-if="tx.match">
                   <div class="flex items-center gap-2">
-                    <span v-if="tx.matchedRecently" class="rounded bg-(--color-ok-text)/20 px-1.5 py-0.5 text-xs text-(--color-ok-text)">New</span>
+                    <span v-if="tx.matchedRecently" class="rounded bg-(--color-ok-text)/20 px-1.5 py-0.5 text-xs text-(--color-ok-text)">{{ t('vir.new') }}</span>
                     <span>{{ tx.match.tenant ?? '—' }} · {{ tx.match.property ?? '—' }}</span>
                   </div>
                   <div class="mt-1 flex items-center gap-3">
@@ -118,25 +115,25 @@ async function unlink(txId: string) {
                       rel="noopener noreferrer"
                       class="text-xs text-(--color-cobalt) underline"
                     >
-                      Open in Rentila ↗
+                      {{ t('vir.openRentila') }}
                     </a>
                     <button
                       :disabled="busyId === tx.id"
                       class="text-xs text-(--color-fg-soft) underline disabled:opacity-50"
                       @click="unlink(tx.id)"
                     >
-                      {{ busyId === tx.id ? 'Unlinking…' : 'Unlink' }}
+                      {{ busyId === tx.id ? t('vir.unlinking') : t('vir.unlink') }}
                     </button>
                   </div>
                 </template>
                 <template v-else>
                   <div class="flex items-center gap-2">
-                    <span class="text-(--color-fg-soft)">Unmatched</span>
+                    <span class="text-(--color-fg-soft)">{{ t('dash.unmatched') }}</span>
                     <button
                       class="text-xs text-(--color-cobalt) underline"
                       @click="openLinkPicker(tx.id)"
                     >
-                      {{ linkingId === tx.id ? 'Cancel' : 'Link to payment' }}
+                      {{ linkingId === tx.id ? t('vir.cancel') : t('vir.link') }}
                     </button>
                   </div>
                 </template>
@@ -145,16 +142,15 @@ async function unlink(txId: string) {
             <tr v-if="linkingId === tx.id" class="border-b border-(--color-line) bg-(--color-bg) last:border-0">
               <td colspan="5" class="px-4 py-3">
                 <div v-if="!unmatchedPayments?.items?.length" class="text-sm text-(--color-fg-soft)">
-                  No pending rent payments to link — sync Rentila from
-                  <NuxtLink to="/dashboard/integrations" class="underline">Integrations</NuxtLink>
-                  first.
+                  {{ t('vir.noPending') }}
+                  <NuxtLink to="/dashboard/integrations" class="underline">{{ t('nav.integrations') }}</NuxtLink>.
                 </div>
                 <div v-else class="flex flex-wrap items-center gap-3">
                   <select
                     v-model="selectedPaymentId"
                     class="rounded border border-(--color-line) bg-(--color-bg-raised) px-3 py-2 text-sm"
                   >
-                    <option value="" disabled>Choose a pending rent payment…</option>
+                    <option value="" disabled>{{ t('vir.choose') }}</option>
                     <option v-for="p in unmatchedPayments.items" :key="p.id" :value="p.id">
                       {{ formatDate(p.dueDate) }} · €{{ p.amount.toFixed(2) }} · {{ p.tenant ?? '—' }} · {{ p.property ?? '—' }}
                     </option>
@@ -164,7 +160,7 @@ async function unlink(txId: string) {
                     class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
                     @click="confirmLink(tx.id)"
                   >
-                    {{ busyId === tx.id ? 'Linking…' : 'Confirm link' }}
+                    {{ busyId === tx.id ? t('vir.linking') : t('vir.confirm') }}
                   </button>
                   <p v-if="linkError" class="text-sm text-(--color-danger-text)">{{ linkError }}</p>
                 </div>

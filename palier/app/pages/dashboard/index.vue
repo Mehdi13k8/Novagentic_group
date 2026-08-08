@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
+const { t } = useLocale()
 const { data: org, refresh } = await useFetch('/api/org/me')
 const { data: transactions } = await useFetch('/api/transactions')
 const subscribing = ref(false)
@@ -21,7 +22,7 @@ onActivated(() => refresh())
 <template>
   <div class="flex flex-col gap-8">
     <div>
-      <p class="eyebrow">Overview</p>
+      <p class="eyebrow">{{ t('nav.dashboard') }}</p>
       <h1 class="display mt-1 text-3xl">{{ org?.name }}</h1>
     </div>
 
@@ -31,15 +32,15 @@ onActivated(() => refresh())
       class="rounded-lg border border-(--color-ok-text)/40 bg-(--color-ok-text)/10 p-5 text-sm transition-colors hover:border-(--color-ok-text)"
     >
       <p class="font-medium text-(--color-fg)">
-        🔔 {{ transactions.newMatchesCount }} new rent payment match{{ transactions.newMatchesCount > 1 ? 'es' : '' }}
+        🔔 {{ transactions.newMatchesCount }} {{ transactions.newMatchesCount > 1 ? t('dash.newMatches') : t('dash.newMatch') }}
       </p>
-      <p class="mt-1 text-(--color-fg-soft)">A tenant's transfer just matched a pending rent — see Virements →</p>
+      <p class="mt-1 text-(--color-fg-soft)">{{ t('dash.newMatchBody') }}</p>
     </NuxtLink>
 
     <div class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-      <p class="eyebrow">Subscription</p>
+      <p class="eyebrow">{{ t('dash.subscription') }}</p>
       <p class="mt-2 text-sm">
-        Plan:
+        {{ t('dash.plan') }} :
         <span
           class="font-medium"
           :class="{
@@ -48,7 +49,7 @@ onActivated(() => refresh())
             'text-(--color-danger-text)': org?.plan === 'canceled',
           }"
         >
-          {{ org?.plan }}
+          {{ org?.plan ? t(`dash.plan.${org.plan}`) : '' }}
         </span>
         <span v-if="org?.stripe.subscriptionStatus" class="text-(--color-fg-soft)">
           ({{ org.stripe.subscriptionStatus }})
@@ -60,7 +61,7 @@ onActivated(() => refresh())
         class="mt-3 rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
         @click="subscribe"
       >
-        {{ subscribing ? 'Redirecting…' : 'Subscribe — €3/month' }}
+        {{ subscribing ? t('dash.redirecting') : t('dash.subscribe') }}
       </button>
     </div>
 
@@ -69,10 +70,10 @@ onActivated(() => refresh())
         to="/dashboard/integrations"
         class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5 transition-colors hover:border-(--color-cobalt)"
       >
-        <p class="eyebrow">Rentila</p>
+        <p class="eyebrow">{{ t('dash.rentila') }}</p>
         <p class="mt-2 text-sm">
           <span :class="org?.rentila.connected ? 'text-(--color-ok-text)' : 'text-(--color-fg-soft)'">
-            {{ org?.rentila.connected ? 'Connected' : 'Not connected' }}
+            {{ org?.rentila.connected ? t('dash.connected') : t('dash.notConnected') }}
           </span>
         </p>
       </NuxtLink>
@@ -81,10 +82,10 @@ onActivated(() => refresh())
         to="/dashboard/integrations"
         class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5 transition-colors hover:border-(--color-cobalt)"
       >
-        <p class="eyebrow">Bank (Bridge)</p>
+        <p class="eyebrow">{{ t('dash.bankBridge') }}</p>
         <p class="mt-2 text-sm">
           <span :class="org?.bridge.connected ? 'text-(--color-ok-text)' : 'text-(--color-fg-soft)'">
-            {{ org?.bridge.connected ? 'Connected' : 'Not connected' }}
+            {{ org?.bridge.connected ? t('dash.connected') : t('dash.notConnected') }}
           </span>
         </p>
       </NuxtLink>
@@ -93,10 +94,10 @@ onActivated(() => refresh())
         to="/dashboard/integrations"
         class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5 transition-colors hover:border-(--color-cobalt)"
       >
-        <p class="eyebrow">Bank (Enable Banking)</p>
+        <p class="eyebrow">{{ t('dash.bankEb') }}</p>
         <p class="mt-2 text-sm">
           <span :class="org?.enablebanking.connected ? 'text-(--color-ok-text)' : 'text-(--color-fg-soft)'">
-            {{ org?.enablebanking.connected ? `Connected — ${org.enablebanking.aspspName}` : 'Not connected' }}
+            {{ org?.enablebanking.connected ? `${t('dash.connected')} — ${org.enablebanking.aspspName}` : t('dash.notConnected') }}
           </span>
         </p>
       </NuxtLink>

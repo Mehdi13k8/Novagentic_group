@@ -1,14 +1,20 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
+const { locale, t } = useLocale()
 const { data } = await useFetch('/api/accounting/monthly')
 
 // Income/expenses is a good/bad pair, so it wears status-style colors, not
 // arbitrary categorical hues (see dataviz skill's color-formula.md: "when a
 // series means good/bad it wears status tokens"). Validated with
-// scripts/validate_palette.js against this app's actual dark surface
-// (#0e0e0e) — plain green-500/red-500 FAILED the lightness band; this pair
-// is the one that cleared all six checks.
+// scripts/validate_palette.js — plain green-500/red-500 FAILED the lightness
+// band; this pair is the one that cleared all six checks.
+//
+// Revalidé après le passage au double thème : les surfaces ont changé
+// (#0e0e0e -> #121214 en sombre, #fffefa en clair). Ces deux teintes tiennent
+// des deux côtés — 4,97:1 sur la carte sombre, 3,73:1 sur la claire, au-dessus
+// du seuil de 3:1 qui s'applique aux éléments graphiques non textuels. Elles
+// restent donc figées volontairement, plutôt que suivre les tokens de thème.
 const INCOME_COLOR = '#059669'
 const EXPENSE_COLOR = '#ef4444'
 
@@ -86,32 +92,30 @@ const hoveredGroup = computed(() => chart.value.groups.find((g) => g.month === h
 <template>
   <div class="flex flex-col gap-8">
     <div>
-      <p class="eyebrow">Accounting</p>
-      <h1 class="display mt-1 text-3xl">Income vs. costs</h1>
+      <p class="eyebrow">{{ t('nav.accounting') }}</p>
+      <h1 class="display mt-1 text-3xl">{{ t('dash.incomeVsCosts') }}</h1>
       <p class="mt-2 text-sm text-(--color-fg-soft)">
-        Rent actually received (paid in Rentila, or matched to a bank transfer) against
-        every recorded apartment cost — last 12 months.
+        {{ t('acc.lede') }}
       </p>
     </div>
 
     <div v-if="!data?.months?.some((m) => m.income || m.expenses)" class="text-sm text-(--color-fg-soft)">
-      Nothing to chart yet — connect Rentila and sync from
-      <NuxtLink to="/dashboard/integrations" class="underline">Integrations</NuxtLink>
-      first.
+      {{ t('acc.empty') }}
+      <NuxtLink to="/dashboard/integrations" class="underline">{{ t('nav.integrations') }}</NuxtLink>.
     </div>
 
     <template v-else>
       <div class="grid gap-4 sm:grid-cols-3">
         <div class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-          <p class="eyebrow">Income (12mo)</p>
+          <p class="eyebrow">{{ t('dash.income12') }}</p>
           <p class="display mt-2 text-2xl" :style="{ color: INCOME_COLOR }">{{ euro(data?.totalIncome ?? 0) }}</p>
         </div>
         <div class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-          <p class="eyebrow">Costs (12mo)</p>
+          <p class="eyebrow">{{ t('dash.costs12') }}</p>
           <p class="display mt-2 text-2xl" :style="{ color: EXPENSE_COLOR }">{{ euro(data?.totalExpenses ?? 0) }}</p>
         </div>
         <div class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-          <p class="eyebrow">Net</p>
+          <p class="eyebrow">{{ t('acc.net') }}</p>
           <p
             class="display mt-2 text-2xl"
             :style="{ color: (data?.net ?? 0) >= 0 ? INCOME_COLOR : EXPENSE_COLOR }"
@@ -126,16 +130,16 @@ const hoveredGroup = computed(() => chart.value.groups.find((g) => g.month === h
         <div class="flex items-center gap-4 text-xs text-(--color-fg-soft)">
           <span class="flex items-center gap-1.5">
             <span class="inline-block h-2.5 w-2.5 rounded-full" :style="{ background: INCOME_COLOR }" />
-            Income
+            {{ t('dash.col.income') }}
           </span>
           <span class="flex items-center gap-1.5">
             <span class="inline-block h-2.5 w-2.5 rounded-full" :style="{ background: EXPENSE_COLOR }" />
-            Costs
+            {{ t('dash.col.costs') }}
           </span>
         </div>
 
         <div class="relative mt-3">
-          <svg :viewBox="`0 0 ${W} ${H}`" class="w-full" role="img" aria-label="Monthly income vs. costs, last 12 months">
+          <svg :viewBox="`0 0 ${W} ${H}`" class="w-full" role="img" :aria-label="t('acc.chartAlt')">
             <!-- gridlines: hairline, recessive, one-step-off-surface -->
             <g v-for="t in chart.ticks" :key="t.value">
               <line
@@ -198,10 +202,10 @@ const hoveredGroup = computed(() => chart.value.groups.find((g) => g.month === h
         <table class="w-full text-left text-sm">
           <thead class="border-b border-(--color-line) text-(--color-fg-soft)">
             <tr>
-              <th class="px-4 py-3 font-normal">Month</th>
-              <th class="px-4 py-3 font-normal">Income</th>
-              <th class="px-4 py-3 font-normal">Costs</th>
-              <th class="px-4 py-3 font-normal">Net</th>
+              <th class="px-4 py-3 font-normal">{{ t('dash.col.month') }}</th>
+              <th class="px-4 py-3 font-normal">{{ t('dash.col.income') }}</th>
+              <th class="px-4 py-3 font-normal">{{ t('dash.col.costs') }}</th>
+              <th class="px-4 py-3 font-normal">{{ t('acc.net') }}</th>
             </tr>
           </thead>
           <tbody>

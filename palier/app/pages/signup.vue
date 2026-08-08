@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useLocale()
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
@@ -8,7 +9,7 @@ const loading = ref(false)
 async function onSubmit() {
   error.value = ''
   if (password.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match'
+    error.value = t('auth.signup.mismatch')
     return
   }
   loading.value = true
@@ -19,7 +20,7 @@ async function onSubmit() {
     })
     await navigateTo('/dashboard')
   } catch (err: any) {
-    error.value = err?.data?.statusMessage || 'Could not create account'
+    error.value = err?.data?.statusMessage || t('auth.signup.failed')
   } finally {
     loading.value = false
   }
@@ -28,14 +29,14 @@ async function onSubmit() {
 
 <template>
   <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6 py-16">
-    <h1 class="display text-2xl">Create an account</h1>
+    <h1 class="display text-2xl">{{ t('auth.signup.title') }}</h1>
 
     <form class="flex flex-col gap-3" @submit.prevent="onSubmit">
       <input
         v-model="email"
         type="email"
         required
-        placeholder="Email"
+        :placeholder="t('auth.f.email')"
         autocomplete="email"
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
@@ -44,7 +45,7 @@ async function onSubmit() {
         type="password"
         required
         minlength="8"
-        placeholder="Password (8+ characters)"
+        :placeholder="t('auth.f.password8')"
         autocomplete="new-password"
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
@@ -52,7 +53,7 @@ async function onSubmit() {
         v-model="confirmPassword"
         type="password"
         required
-        placeholder="Confirm password"
+        :placeholder="t('auth.f.confirm')"
         autocomplete="new-password"
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
@@ -64,12 +65,12 @@ async function onSubmit() {
         :disabled="loading"
         class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
       >
-        {{ loading ? 'Creating…' : 'Create account' }}
+        {{ loading ? t('auth.signup.pending') : t('auth.signup.submit') }}
       </button>
     </form>
 
     <p class="text-sm text-(--color-fg-soft)">
-      Already have an account? <NuxtLink to="/login" class="underline">Log in</NuxtLink>
+      {{ t('auth.signup.have') }} <NuxtLink to="/login" class="underline">{{ t('auth.toLogin') }}</NuxtLink>
     </p>
   </main>
 </template>

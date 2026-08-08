@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useLocale()
 const route = useRoute()
 const email = ref(String(route.query.email ?? ''))
 const token = ref(String(route.query.token ?? ''))
@@ -10,7 +11,7 @@ const loading = ref(false)
 async function onSubmit() {
   error.value = ''
   if (password.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match'
+    error.value = t('auth.signup.mismatch')
     return
   }
   loading.value = true
@@ -21,7 +22,7 @@ async function onSubmit() {
     })
     await navigateTo('/dashboard')
   } catch (err: any) {
-    error.value = err?.data?.statusMessage || 'Invalid or expired reset link'
+    error.value = err?.data?.statusMessage || t('auth.reset.invalid')
   } finally {
     loading.value = false
   }
@@ -30,10 +31,10 @@ async function onSubmit() {
 
 <template>
   <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6 py-16">
-    <h1 class="display text-2xl">Choose a new password</h1>
+    <h1 class="display text-2xl">{{ t('auth.reset.title') }}</h1>
 
     <p v-if="!token" class="text-sm text-(--color-danger-text)">
-      Missing reset token — use the link from the email (or dev server log).
+      {{ t('auth.reset.noToken') }}
     </p>
 
     <form class="flex flex-col gap-3" @submit.prevent="onSubmit">
@@ -41,7 +42,7 @@ async function onSubmit() {
         v-model="email"
         type="email"
         required
-        placeholder="Email"
+        :placeholder="t('auth.f.email')"
         autocomplete="email"
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
@@ -50,7 +51,7 @@ async function onSubmit() {
         type="password"
         required
         minlength="8"
-        placeholder="New password (8+ characters)"
+        :placeholder="t('auth.f.newPassword')"
         autocomplete="new-password"
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
@@ -58,7 +59,7 @@ async function onSubmit() {
         v-model="confirmPassword"
         type="password"
         required
-        placeholder="Confirm new password"
+        :placeholder="t('auth.f.confirmNew')"
         autocomplete="new-password"
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
@@ -70,7 +71,7 @@ async function onSubmit() {
         :disabled="loading || !token"
         class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
       >
-        {{ loading ? 'Saving…' : 'Set new password' }}
+        {{ loading ? t('auth.reset.pending') : t('auth.reset.submit') }}
       </button>
     </form>
   </main>

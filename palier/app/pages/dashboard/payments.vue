@@ -1,42 +1,41 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
+const { locale, t } = useLocale()
 const { data } = await useFetch('/api/payments')
 
 function formatDate(d: string) {
-  return new Date(d).toLocaleDateString('fr-FR')
+  return new Date(d).toLocaleDateString(locale.value === 'en' ? 'en-GB' : 'fr-FR')
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-8">
     <div>
-      <p class="eyebrow">Payments</p>
-      <h1 class="display mt-1 text-3xl">Rent &amp; apartment costs</h1>
+      <p class="eyebrow">{{ t('nav.payments') }}</p>
+      <h1 class="display mt-1 text-3xl">{{ t('pay.title') }}</h1>
       <p class="mt-2 text-sm text-(--color-fg-soft)">
-        Everything synced from Rentila — rent payments and property expenses (ENGIE,
-        syndic, taxes...). For the income-vs-costs summary, see
-        <NuxtLink to="/dashboard/accounting" class="underline">Accounting</NuxtLink>.
+        {{ t('pay.lede') }}
+        <NuxtLink to="/dashboard/accounting" class="underline">{{ t('nav.accounting') }}</NuxtLink>.
       </p>
     </div>
 
     <p v-if="!data?.items?.length" class="text-sm text-(--color-fg-soft)">
-      Nothing synced yet — connect Rentila from
-      <NuxtLink to="/dashboard/integrations" class="underline">Integrations</NuxtLink>
-      first.
+      {{ t('pay.empty') }}
+      <NuxtLink to="/dashboard/integrations" class="underline">{{ t('nav.integrations') }}</NuxtLink>.
     </p>
 
     <div v-else class="overflow-x-auto rounded-lg border border-(--color-line)">
       <table class="w-full text-left text-sm">
         <thead class="border-b border-(--color-line) text-(--color-fg-soft)">
           <tr>
-            <th class="px-4 py-3 font-normal">Due</th>
-            <th class="px-4 py-3 font-normal">Type</th>
-            <th class="px-4 py-3 font-normal">Property</th>
-            <th class="px-4 py-3 font-normal">Tenant / payee</th>
-            <th class="px-4 py-3 font-normal">Amount</th>
-            <th class="px-4 py-3 font-normal">Status</th>
-            <th class="px-4 py-3 font-normal">Matched</th>
+            <th class="px-4 py-3 font-normal">{{ t('pay.col.due') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.type') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.property') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.tenant') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.amount') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.status') }}</th>
+            <th class="px-4 py-3 font-normal">{{ t('dash.col.matched') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -47,7 +46,7 @@ function formatDate(d: string) {
                 class="rounded px-1.5 py-0.5 text-xs"
                 :class="p.kind === 'rent' ? 'bg-(--color-cobalt)/20 text-(--color-cobalt)' : 'bg-(--color-danger-text)/20 text-(--color-danger-text)'"
               >
-                {{ p.kind === 'rent' ? 'Rent' : 'Expense' }}
+                {{ p.kind === 'rent' ? t('pay.kind.rent') : t('pay.kind.expense') }}
               </span>
             </td>
             <td class="px-4 py-3">{{ p.property ?? '—' }}</td>
@@ -63,10 +62,10 @@ function formatDate(d: string) {
                   'text-(--color-danger-text)': p.status === 'lost',
                 }"
               >
-                {{ p.status }}
+                {{ t(`pay.status.${p.status}`) }}
               </span>
             </td>
-            <td class="px-4 py-3">{{ p.kind === 'rent' ? (p.matched ? 'Yes' : 'No') : '—' }}</td>
+            <td class="px-4 py-3">{{ p.kind === 'rent' ? (p.matched ? t('pay.yes') : t('pay.no')) : '—' }}</td>
           </tr>
         </tbody>
       </table>

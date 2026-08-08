@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useLocale()
 const email = ref('')
 const sent = ref(false)
 const loading = ref(false)
@@ -18,11 +19,11 @@ async function onSubmit() {
 
 <template>
   <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6 py-16">
-    <h1 class="display text-2xl">Reset your password</h1>
+    <h1 class="display text-2xl">{{ t('auth.forgot.title') }}</h1>
 
     <template v-if="sent">
       <p class="text-sm text-(--color-fg-soft)">
-        If an account exists for that email, a reset link has been sent.
+        {{ t('auth.forgot.sent') }}
       </p>
     </template>
 
@@ -31,7 +32,7 @@ async function onSubmit() {
         v-model="email"
         type="email"
         required
-        placeholder="Email"
+        :placeholder="t('auth.f.email')"
         autocomplete="email"
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
@@ -40,12 +41,12 @@ async function onSubmit() {
         :disabled="loading"
         class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
       >
-        {{ loading ? 'Sending…' : 'Send reset link' }}
+        {{ loading ? t('auth.forgot.pending') : t('auth.forgot.submit') }}
       </button>
     </form>
 
     <p class="text-sm text-(--color-fg-soft)">
-      <NuxtLink to="/login" class="underline">Back to log in</NuxtLink>
+      <NuxtLink to="/login" class="underline">{{ t('auth.forgot.back') }}</NuxtLink>
     </p>
   </main>
 </template>
