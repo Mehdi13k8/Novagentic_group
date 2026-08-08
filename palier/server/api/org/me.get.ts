@@ -23,7 +23,13 @@ export default defineEventHandler(async (event) => {
     enablebanking: {
       connected: Boolean(org.enablebanking.sessionId && org.enablebanking.accountUids?.length),
       aspspName: org.enablebanking.aspspName ?? null,
+      aspspCountry: org.enablebanking.aspspCountry ?? null,
       validUntil: org.enablebanking.validUntil ?? null,
+      // The dashboard header reports when we last actually called the bank.
+      // Set on every attempt, including rejected ones (see reconcile.ts), so
+      // it is the honest "last contact", not "last success".
+      lastPolledAt: org.enablebanking.lastPolledAt ?? null,
+      accountCount: org.enablebanking.accountUids?.length ?? 0,
     },
   }
 })

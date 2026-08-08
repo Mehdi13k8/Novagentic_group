@@ -1,8 +1,33 @@
 <script setup lang="ts">
+/**
+ * Grand livre — les écritures du mois, puis la synthèse 12 mois.
+ *
+ * L'écran ne portait que le graphique ; la maquette y attend d'abord le
+ * détail ligne à ligne, parce que c'est ce qu'on vient y chercher (« qu'est-ce
+ * qui compose ce chiffre ? »). Le graphique reste, en dessous.
+ *
+ * Une colonne de la maquette n'est pas reprise : « Compte ». Palier n'a pas de
+ * plan comptable, et afficher un 706 ou un 614 plausible à côté de montants
+ * réels inventerait une comptabilité que le produit ne tient pas.
+ *
+ * Le « Pack fiscal 2044 » de la maquette n'est pas repris non plus : rien ne
+ * le génère côté serveur. L'export CSV, lui, est réel — il sort les lignes
+ * effectivement affichées.
+ */
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
 const { locale, t } = useLocale()
-const { data } = await useFetch('/api/accounting/monthly')
+const { money, fullDate, monthLabel } = useFormat()
+const { push } = useToasts()
+
+const month = ref<string>('')
+const { data: ledger, status: ledgerStatus } = await useFetch('/api/ledger', {
+  query: { month },
+  lazy: true,
+})
+const { data } = await useFetch('/api/accounting/monthly', { lazy: true })
+
+const ledgerLoading = computed(() => ledgerStatus.value === 'pending' && !ledger.value)
 
 // Income/expenses is a good/bad pair, so it wears status-style colors, not
 // arbitrary categorical hues (see dataviz skill's color-formula.md: "when a
@@ -41,13 +66,17 @@ function roundedTopPath(x: number, y: number, w: number, h: number) {
   return `M${x},${bottom} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${bottom} Z`
 }
 
+// L'appli est bilingue : ces deux formats suivaient 'fr-FR' en dur, donc les
+// mois et les milliers restaient français en anglais.
+const localeTag = computed(() => (locale.value === 'en' ? 'en-GB' : 'fr-FR'))
+
 function formatMonth(m: string) {
-  const [year, month] = m.split('-').map(Number)
-  return new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })
+  const [year, monthNumber] = m.split('-').map(Number)
+  return new Date(year!, monthNumber! - 1, 1).toLocaleDateString(localeTag.value, { month: 'short', year: '2-digit' })
 }
 
 function euro(n: number) {
-  return `${n.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €`
+  return `${n.toLocaleString(localeTag.value, { maximumFractionDigits: 0 })} €`
 }
 
 const chart = computed(() => {
@@ -87,139 +116,230 @@ const chart = computed(() => {
 
 const hovered = ref<string | null>(null)
 const hoveredGroup = computed(() => chart.value.groups.find((g) => g.month === hovered.value) ?? null)
+
+/** Un champ CSV : guillemets doublés, et entouré dès qu'il contient un séparateur. */
+function csvCell(value: string | number) {
+  const text = String(value)
+  return /[",;\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+}
+
+function exportCsv() {
+  const rows = ledger.value?.entries ?? []
+  if (!rows.length) return
+  const header = [t('livre.col.date'), t('livre.col.label'), t('livre.col.lot'), t('livre.col.debit'), t('livre.col.credit')]
+  // Point-virgule : Excel en locale française scinde sur ';', pas sur ','.
+  const lines = [
+    header.map(csvCell).join(';'),
+    ...rows.map((entry) =>
+      [
+        new Date(entry.date).toISOString().slice(0, 10),
+        entry.label,
+        entry.property ?? '',
+        entry.debit ? entry.debit.toFixed(2) : '',
+        entry.credit ? entry.credit.toFixed(2) : '',
+      ]
+        .map(csvCell)
+        .join(';'),
+    ),
+  ]
+  // BOM : sans lui Excel lit l'UTF-8 comme du latin-1 et casse les accents.
+  const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `palier-grand-livre-${ledger.value?.month}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+  push(`${t('livre.toast.csv')} — ${monthLabel(ledger.value?.month)}`, { tone: 'ok' })
+}
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
-    <div>
-      <p class="eyebrow">{{ t('nav.accounting') }}</p>
-      <h1 class="display mt-1 text-3xl">{{ t('dash.incomeVsCosts') }}</h1>
-      <p class="mt-2 text-sm text-(--color-fg-soft)">
-        {{ t('acc.lede') }}
-      </p>
+  <div class="flex flex-col gap-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <label class="flex items-center gap-2">
+        <span class="eyebrow text-[0.6rem]">{{ t('livre.month') }}</span>
+        <select
+          v-model="month"
+          class="eyebrow rounded-md border border-(--color-line) px-3 py-2 text-[0.65rem] text-(--color-fg)"
+        >
+          <option value="">{{ t('livre.currentMonth') }}</option>
+          <option v-for="m in ledger?.availableMonths ?? []" :key="m" :value="m">{{ monthLabel(m) }}</option>
+        </select>
+      </label>
+
+      <button
+        type="button"
+        :disabled="!ledger?.entries?.length"
+        class="eyebrow rounded-md border border-(--color-line) px-4 py-2 text-[0.65rem] transition-colors hover:border-(--color-cobalt) disabled:opacity-40"
+        @click="exportCsv"
+      >
+        {{ t('livre.exportCsv') }}
+      </button>
     </div>
 
-    <div v-if="!data?.months?.some((m) => m.income || m.expenses)" class="text-sm text-(--color-fg-soft)">
-      {{ t('acc.empty') }}
-      <NuxtLink to="/dashboard/integrations" class="underline">{{ t('nav.integrations') }}</NuxtLink>.
-    </div>
+    <div v-if="ledgerLoading" aria-busy="true"><SkeletonBlock height="18rem" /></div>
+
+    <EmptyState
+      v-else-if="!ledger?.entries?.length"
+      :eyebrow="t('livre.empty.eyebrow')"
+      :title="t('livre.empty.title')"
+      :body="t('livre.empty.body')"
+      :cta="t('livre.empty.cta')"
+      to="/dashboard/integrations"
+    />
 
     <template v-else>
-      <div class="grid gap-4 sm:grid-cols-3">
-        <div class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-          <p class="eyebrow">{{ t('dash.income12') }}</p>
-          <p class="display mt-2 text-2xl" :style="{ color: INCOME_COLOR }">{{ euro(data?.totalIncome ?? 0) }}</p>
+      <div class="overflow-x-auto rounded-lg border border-(--color-line) bg-(--color-bg-raised)">
+        <table class="w-full min-w-[46rem] text-left">
+          <thead>
+            <tr class="border-b border-(--color-line)">
+              <th class="eyebrow px-5 py-2.5 text-[0.6rem] font-normal">{{ t('livre.col.date') }}</th>
+              <th class="eyebrow px-5 py-2.5 text-[0.6rem] font-normal">{{ t('livre.col.label') }}</th>
+              <th class="eyebrow px-5 py-2.5 text-[0.6rem] font-normal">{{ t('livre.col.lot') }}</th>
+              <th class="eyebrow px-5 py-2.5 text-right text-[0.6rem] font-normal">{{ t('livre.col.debit') }}</th>
+              <th class="eyebrow px-5 py-2.5 text-right text-[0.6rem] font-normal">{{ t('livre.col.credit') }}</th>
+              <th class="eyebrow px-5 py-2.5 text-right text-[0.6rem] font-normal">{{ t('livre.col.balance') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="entry in ledger.entries" :key="entry.id" class="border-b border-(--color-line)">
+              <td class="px-5 py-3 font-mono text-[0.66rem] text-(--color-fg-soft)">{{ fullDate(entry.date) }}</td>
+              <td class="px-5 py-3">
+                <span class="text-[13.5px]">{{ entry.label }}</span>
+                <!-- « Les écritures rapprochées portent la référence du
+                     virement » — l'état ne tient pas qu'à la couleur. -->
+                <StatusPill v-if="entry.reconciled" class="ml-2" tone="ok" :label="t('livre.reconciled')" />
+              </td>
+              <td class="px-5 py-3 font-mono text-[0.62rem] text-(--color-fg-soft)">{{ entry.property ?? '—' }}</td>
+              <td class="px-5 py-3 text-right font-mono text-[0.7rem] text-(--color-danger-text)">
+                {{ entry.debit ? money(entry.debit) : '' }}
+              </td>
+              <td class="px-5 py-3 text-right font-mono text-[0.7rem] text-(--color-ok-text)">
+                {{ entry.credit ? money(entry.credit) : '' }}
+              </td>
+              <td class="px-5 py-3 text-right font-mono text-[0.7rem]">{{ money(entry.balance) }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="bg-(--color-bg-sunken)">
+              <td />
+              <td class="eyebrow px-5 py-3 text-[0.62rem]">{{ t('livre.totals') }}</td>
+              <td />
+              <td class="px-5 py-3 text-right font-mono text-[0.7rem] text-(--color-danger-text)">
+                {{ money(ledger.totals.debit) }}
+              </td>
+              <td class="px-5 py-3 text-right font-mono text-[0.7rem] text-(--color-ok-text)">
+                {{ money(ledger.totals.credit) }}
+              </td>
+              <td class="px-5 py-3 text-right font-mono text-[0.7rem] font-medium">{{ money(ledger.totals.balance) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <p class="eyebrow text-[0.62rem] normal-case">{{ t('livre.note') }}</p>
+    </template>
+
+    <section
+      v-if="data?.months?.some((m) => m.income || m.expenses)"
+      class="mt-3 rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5"
+    >
+      <h2 class="eyebrow text-[0.68rem]">{{ t('dash.incomeVsCosts') }}</h2>
+
+      <div class="mt-3 grid gap-4 sm:grid-cols-3">
+        <div>
+          <p class="eyebrow text-[0.62rem]">{{ t('dash.income12') }}</p>
+          <p class="display mt-1 text-2xl" :style="{ color: INCOME_COLOR }">{{ euro(data?.totalIncome ?? 0) }}</p>
         </div>
-        <div class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-          <p class="eyebrow">{{ t('dash.costs12') }}</p>
-          <p class="display mt-2 text-2xl" :style="{ color: EXPENSE_COLOR }">{{ euro(data?.totalExpenses ?? 0) }}</p>
+        <div>
+          <p class="eyebrow text-[0.62rem]">{{ t('dash.costs12') }}</p>
+          <p class="display mt-1 text-2xl" :style="{ color: EXPENSE_COLOR }">{{ euro(data?.totalExpenses ?? 0) }}</p>
         </div>
-        <div class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-          <p class="eyebrow">{{ t('acc.net') }}</p>
-          <p
-            class="display mt-2 text-2xl"
-            :style="{ color: (data?.net ?? 0) >= 0 ? INCOME_COLOR : EXPENSE_COLOR }"
-          >
+        <div>
+          <p class="eyebrow text-[0.62rem]">{{ t('acc.net') }}</p>
+          <p class="display mt-1 text-2xl" :style="{ color: (data?.net ?? 0) >= 0 ? INCOME_COLOR : EXPENSE_COLOR }">
             {{ (data?.net ?? 0) >= 0 ? '+' : '' }}{{ euro(data?.net ?? 0) }}
           </p>
         </div>
       </div>
 
-      <div class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-        <!-- legend — always present for 2+ series -->
-        <div class="flex items-center gap-4 text-xs text-(--color-fg-soft)">
-          <span class="flex items-center gap-1.5">
-            <span class="inline-block h-2.5 w-2.5 rounded-full" :style="{ background: INCOME_COLOR }" />
-            {{ t('dash.col.income') }}
-          </span>
-          <span class="flex items-center gap-1.5">
-            <span class="inline-block h-2.5 w-2.5 rounded-full" :style="{ background: EXPENSE_COLOR }" />
-            {{ t('dash.col.costs') }}
-          </span>
-        </div>
-
-        <div class="relative mt-3">
-          <svg :viewBox="`0 0 ${W} ${H}`" class="w-full" role="img" :aria-label="t('acc.chartAlt')">
-            <!-- gridlines: hairline, recessive, one-step-off-surface -->
-            <g v-for="t in chart.ticks" :key="t.value">
-              <line
-                :x1="MARGIN.left"
-                :x2="W - MARGIN.right"
-                :y1="t.y"
-                :y2="t.y"
-                stroke="var(--color-line)"
-                stroke-width="1"
-              />
-              <text :x="MARGIN.left - 8" :y="t.y" text-anchor="end" dominant-baseline="middle" font-size="10" fill="var(--color-fg-soft)">
-                {{ euro(t.value) }}
-              </text>
-            </g>
-
-            <!-- bars -->
-            <g v-for="g in chart.groups" :key="g.month">
-              <path :d="g.incomePath" :fill="INCOME_COLOR" />
-              <path :d="g.expensePath" :fill="EXPENSE_COLOR" />
-              <text
-                :x="g.groupX + g.groupW / 2"
-                :y="H - MARGIN.bottom + 14"
-                text-anchor="middle"
-                font-size="10"
-                fill="var(--color-fg-soft)"
-              >
-                {{ g.label }}
-              </text>
-              <!-- hover hit target: the whole month column, bigger than the thin bars themselves -->
-              <rect
-                :x="g.groupX"
-                :y="MARGIN.top"
-                :width="g.groupW"
-                :height="plotH"
-                fill="transparent"
-                @mouseenter="hovered = g.month"
-                @mouseleave="hovered = null"
-              />
-            </g>
-          </svg>
-
-          <!-- tooltip -->
-          <div
-            v-if="hoveredGroup"
-            class="pointer-events-none absolute top-0 z-10 w-36 -translate-x-1/2 rounded border border-(--color-line) bg-(--color-bg) p-2 text-xs shadow-lg"
-            :style="{ left: `${((hoveredGroup.groupX + hoveredGroup.groupW / 2) / W) * 100}%` }"
-          >
-            <p class="font-medium text-(--color-fg)">{{ hoveredGroup.label }}</p>
-            <p :style="{ color: INCOME_COLOR }">Income: {{ euro(hoveredGroup.income) }}</p>
-            <p :style="{ color: EXPENSE_COLOR }">Costs: {{ euro(hoveredGroup.expenses) }}</p>
-            <p class="mt-1 border-t border-(--color-line) pt-1 text-(--color-fg-soft)">
-              Net: {{ hoveredGroup.net >= 0 ? '+' : '' }}{{ euro(hoveredGroup.net) }}
-            </p>
-          </div>
-        </div>
+      <!-- legend — always present for 2+ series -->
+      <div class="mt-5 flex items-center gap-4 text-xs text-(--color-fg-soft)">
+        <span class="flex items-center gap-1.5">
+          <span class="inline-block size-2.5 rounded-full" :style="{ background: INCOME_COLOR }" />
+          {{ t('dash.col.income') }}
+        </span>
+        <span class="flex items-center gap-1.5">
+          <span class="inline-block size-2.5 rounded-full" :style="{ background: EXPENSE_COLOR }" />
+          {{ t('dash.col.costs') }}
+        </span>
       </div>
 
-      <!-- table view — same data, accessible without relying on the chart -->
-      <div class="overflow-x-auto rounded-lg border border-(--color-line)">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b border-(--color-line) text-(--color-fg-soft)">
-            <tr>
-              <th class="px-4 py-3 font-normal">{{ t('dash.col.month') }}</th>
-              <th class="px-4 py-3 font-normal">{{ t('dash.col.income') }}</th>
-              <th class="px-4 py-3 font-normal">{{ t('dash.col.costs') }}</th>
-              <th class="px-4 py-3 font-normal">{{ t('acc.net') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="g in chart.groups" :key="g.month" class="border-b border-(--color-line) last:border-0">
-              <td class="px-4 py-3">{{ g.label }}</td>
-              <td class="px-4 py-3">{{ euro(g.income) }}</td>
-              <td class="px-4 py-3">{{ euro(g.expenses) }}</td>
-              <td class="px-4 py-3" :style="{ color: g.net >= 0 ? INCOME_COLOR : EXPENSE_COLOR }">
-                {{ g.net >= 0 ? '+' : '' }}{{ euro(g.net) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="relative mt-3">
+        <svg :viewBox="`0 0 ${W} ${H}`" class="w-full" role="img" :aria-label="t('acc.chartAlt')">
+          <!-- gridlines: hairline, recessive, one-step-off-surface -->
+          <g v-for="tick in chart.ticks" :key="tick.value">
+            <line
+              :x1="MARGIN.left"
+              :x2="W - MARGIN.right"
+              :y1="tick.y"
+              :y2="tick.y"
+              stroke="var(--color-line)"
+              stroke-width="1"
+            />
+            <text
+              :x="MARGIN.left - 8"
+              :y="tick.y"
+              text-anchor="end"
+              dominant-baseline="middle"
+              font-size="10"
+              fill="var(--color-fg-soft)"
+            >
+              {{ euro(tick.value) }}
+            </text>
+          </g>
+
+          <!-- bars -->
+          <g v-for="g in chart.groups" :key="g.month">
+            <path :d="g.incomePath" :fill="INCOME_COLOR" />
+            <path :d="g.expensePath" :fill="EXPENSE_COLOR" />
+            <text
+              :x="g.groupX + g.groupW / 2"
+              :y="H - MARGIN.bottom + 14"
+              text-anchor="middle"
+              font-size="10"
+              fill="var(--color-fg-soft)"
+            >
+              {{ g.label }}
+            </text>
+            <!-- hover hit target: the whole month column, bigger than the thin bars themselves -->
+            <rect
+              :x="g.groupX"
+              :y="MARGIN.top"
+              :width="g.groupW"
+              :height="plotH"
+              fill="transparent"
+              @mouseenter="hovered = g.month"
+              @mouseleave="hovered = null"
+            />
+          </g>
+        </svg>
+
+        <!-- tooltip -->
+        <div
+          v-if="hoveredGroup"
+          class="pointer-events-none absolute top-0 z-10 w-36 -translate-x-1/2 rounded border border-(--color-line) bg-(--color-bg) p-2 text-xs shadow-lg"
+          :style="{ left: `${((hoveredGroup.groupX + hoveredGroup.groupW / 2) / W) * 100}%` }"
+        >
+          <p class="font-medium text-(--color-fg)">{{ hoveredGroup.label }}</p>
+          <p :style="{ color: INCOME_COLOR }">{{ t('dash.col.income') }} : {{ euro(hoveredGroup.income) }}</p>
+          <p :style="{ color: EXPENSE_COLOR }">{{ t('dash.col.costs') }} : {{ euro(hoveredGroup.expenses) }}</p>
+          <p class="mt-1 border-t border-(--color-line) pt-1 text-(--color-fg-soft)">
+            {{ t('acc.net') }} : {{ hoveredGroup.net >= 0 ? '+' : '' }}{{ euro(hoveredGroup.net) }}
+          </p>
+        </div>
       </div>
-    </template>
+    </section>
   </div>
 </template>
