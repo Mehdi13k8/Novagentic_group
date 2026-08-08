@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { t } = useLocale()
 const route = useRoute()
 const email = ref('')
 const password = ref('')
@@ -18,7 +19,7 @@ async function onSubmit() {
   } catch {
     // Deliberately generic — the API already avoids saying which of
     // email/password was wrong, don't undo that here.
-    error.value = 'Invalid email or password'
+    error.value = t('auth.login.invalid')
   } finally {
     loading.value = false
   }
@@ -27,14 +28,14 @@ async function onSubmit() {
 
 <template>
   <main class="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 px-6 py-16">
-    <h1 class="display text-2xl">Log in</h1>
+    <h1 class="display text-2xl">{{ t('auth.login.title') }}</h1>
 
     <form class="flex flex-col gap-3" @submit.prevent="onSubmit">
       <input
         v-model="email"
         type="email"
         required
-        placeholder="Email"
+        :placeholder="t('auth.f.email')"
         autocomplete="email"
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
@@ -42,7 +43,7 @@ async function onSubmit() {
         v-model="password"
         type="password"
         required
-        placeholder="Password"
+        :placeholder="t('auth.f.password')"
         autocomplete="current-password"
         class="rounded border border-(--color-line) px-3 py-2 text-sm"
       >
@@ -54,13 +55,13 @@ async function onSubmit() {
         :disabled="loading"
         class="rounded bg-(--color-cobalt) px-3 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
       >
-        {{ loading ? 'Logging in…' : 'Log in' }}
+        {{ loading ? t('auth.login.pending') : t('auth.login.submit') }}
       </button>
     </form>
 
     <div class="flex justify-between text-sm text-(--color-fg-soft)">
-      <NuxtLink to="/signup" class="underline">Create an account</NuxtLink>
-      <NuxtLink to="/forgot-password" class="underline">Forgot password?</NuxtLink>
+      <NuxtLink to="/signup" class="underline">{{ t('auth.toSignup') }}</NuxtLink>
+      <NuxtLink to="/forgot-password" class="underline">{{ t('auth.forgot') }}</NuxtLink>
     </div>
   </main>
 </template>
