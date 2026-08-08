@@ -1,8 +1,30 @@
 <script setup lang="ts">
+/**
+ * Banque — les comptes reliés, et de quoi en relier un.
+ *
+ * L'écran empilait trois sections dont DEUX agrégateurs bancaires concurrents
+ * (Bridge et Enable Banking) présentés côte à côte au bailleur. Lequel
+ * choisir ? La question n'est pas la sienne : c'est un détail
+ * d'implémentation. Il n'y a donc plus qu'un seul geste, « connecter un
+ * compte », et le nom de l'agrégateur n'apparaît que là où il est
+ * juridiquement utile — le consentement DSP2 est donné à un prestataire
+ * nommé, le cacher serait malhonnête.
+ *
+ * Bridge n'est plus proposé à la connexion (sa validation KYB est en cours,
+ * voir .env.example) mais reste affiché s'il est déjà relié : on ne fait pas
+ * disparaître un compte existant d'un écran.
+ *
+ * Pas de « journal de synchronisation » comme dans la maquette : aucun
+ * historique de synchro n'est stocké. La carte porte la dernière
+ * synchronisation réelle, ce qui est vrai et suffit.
+ */
 const { t } = useLocale()
 definePageMeta({ middleware: 'auth', layout: 'dashboard' })
 
 const { data: org, refresh } = await useFetch('/api/org/me')
+const { relative, fullDate } = useFormat()
+const { push } = useToasts()
+const route = useRoute()
 
 // --- Rentila -----------------------------------------------------------
 // Rentila has no browser-redirect OAuth for third-party apps (confirmed —
@@ -26,8 +48,9 @@ async function connectRentila() {
     rentilaClientId.value = ''
     rentilaClientSecret.value = ''
     await refresh()
-  } catch (err: any) {
-    rentilaError.value = err?.data?.statusMessage || 'Could not connect to Rentila'
+    push(t('banque.toast.rentila'), { tone: 'ok' })
+  } catch (err: unknown) {
+    rentilaError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage || t('banque.rentilaFailed')
   } finally {
     rentilaConnecting.value = false
   }
@@ -38,39 +61,21 @@ async function syncRentila() {
   syncing.value = true
   try {
     await $fetch('/api/rentila/sync', { method: 'POST' })
+    push(t('banque.toast.rentilaSync'), { tone: 'ok' })
   } finally {
     syncing.value = false
   }
 }
 
-// --- Bridge (bank connection, e.g. CEPAC) -------------------------------
-// This one IS a real redirect flow — Bridge Connect's hosted webview
-// handles the actual bank login, we never see the bank credentials.
-const bridgeConnecting = ref(false)
-async function connectBank() {
-  bridgeConnecting.value = true
-  try {
-    const { url } = await $fetch('/api/bridge/connect', { method: 'POST' })
-    window.location.href = url
-  } finally {
-    bridgeConnecting.value = false
-  }
-}
-
-// --- Enable Banking (bank connection, fast no-KYB alternative) ----------
-// Temporary stand-in for Bridge while Bridge's production KYB is pending —
-// see .env.example. "Restricted Production" only works for accounts you
-// link yourself, so this is a stopgap for the landlord's own bank, not a
-// general replacement for Bridge. Also a real redirect flow — same "we
-// never see the bank credentials" property as Bridge.
-const route = useRoute()
+// --- Connexion bancaire (Enable Banking) --------------------------------
+// Vrai flux de redirection : la page de connexion est celle de la banque,
+// Palier ne voit jamais les identifiants.
 const ebAspsps = ref<{ name: string; country: string }[]>([])
 const ebSelectedAspsp = ref('')
 const ebConnecting = ref(false)
-const ebError = ref(
-  route.query.bank === 'error' ? "Couldn't finish connecting — try again, or pick a different bank." : '',
-)
+const ebError = ref(route.query.bank === 'error' ? t('banque.callbackError') : '')
 const ebSyncing = ref(false)
+const pickerOpen = ref(false)
 
 onMounted(async () => {
   if (org.value?.enablebanking.connected) return
@@ -93,8 +98,8 @@ async function connectEnableBanking() {
       body: { aspspName: aspsp.name, aspspCountry: aspsp.country },
     })
     window.location.href = url
-  } catch (err: any) {
-    ebError.value = err?.data?.statusMessage || 'Could not start the connection'
+  } catch (err: unknown) {
+    ebError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage || t('banque.connectFailed')
     ebConnecting.value = false
   }
 }
@@ -104,38 +109,170 @@ async function syncEnableBanking() {
   ebSyncing.value = true
   try {
     await $fetch('/api/enablebanking/sync', { method: 'POST' })
-  } catch (err: any) {
+    await refresh()
+    push(t('banque.toast.synced'), { tone: 'ok' })
+  } catch (err: unknown) {
     // 429 = the bank itself is rate-limiting polling (PSD2-mandated caps,
     // not a bug) — server/utils/reconcile.ts already turns that into a
     // clean statusMessage instead of a raw crash; just surface it.
-    ebError.value = err?.data?.statusMessage || 'Could not sync — try again in a moment.'
+    ebError.value = (err as { data?: { statusMessage?: string } })?.data?.statusMessage || t('banque.syncFailed')
   } finally {
     ebSyncing.value = false
   }
 }
+
+const hasBank = computed(() => Boolean(org.value?.enablebanking.connected || org.value?.bridge.connected))
+
+const howSteps = computed(() => [t('banque.how.s1'), t('banque.how.s2'), t('banque.how.s3')])
 </script>
 
 <template>
-  <div class="flex flex-col gap-8">
-    <div>
-      <p class="eyebrow">{{ t('nav.integrations') }}</p>
-      <h1 class="display mt-1 text-3xl">{{ t('int.title') }}</h1>
+  <div class="flex flex-col gap-6">
+    <!-- Aucun compte : l'écran explique le flux au lieu d'afficher une grille vide. -->
+    <div v-if="!hasBank" class="grid max-w-4xl items-stretch gap-6 md:grid-cols-2">
+      <section class="flex flex-col gap-3.5 rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-7">
+        <p class="eyebrow text-[0.65rem]">{{ t('banque.emptyTitle') }}</p>
+        <p class="text-sm leading-relaxed text-(--color-fg-soft)">{{ t('banque.connectDesc') }}</p>
+
+        <form class="mt-1 flex flex-col gap-3" @submit.prevent="connectEnableBanking">
+          <label class="flex flex-col gap-1.5 text-sm">
+            <span class="eyebrow text-[0.6rem]">{{ t('int.eb.bank') }}</span>
+            <select
+              v-model="ebSelectedAspsp"
+              required
+              class="rounded-md border border-(--color-line) px-3 py-2.5 text-sm"
+            >
+              <option value="" disabled>{{ ebAspsps.length ? t('int.eb.choose') : t('int.eb.loading') }}</option>
+              <option v-for="a in ebAspsps" :key="a.name" :value="a.name">{{ a.name }}</option>
+            </select>
+          </label>
+          <p v-if="ebError" class="text-sm text-(--color-danger-text)">{{ ebError }}</p>
+          <button
+            type="submit"
+            :disabled="ebConnecting || !ebSelectedAspsp"
+            class="self-start rounded-md bg-(--color-cobalt) px-5 py-3 text-sm font-bold text-(--color-on-cobalt) transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {{ ebConnecting ? t('int.redirecting') : t('banque.connectCta') }}
+          </button>
+        </form>
+
+        <p class="eyebrow mt-auto text-[0.6rem] leading-relaxed normal-case">{{ t('banque.noCreds') }}</p>
+      </section>
+
+      <section class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-7">
+        <p class="eyebrow text-[0.65rem]">{{ t('banque.how') }}</p>
+        <!-- Trois étapes qui se suivent réellement : la numérotation dit
+             quelque chose de vrai ici. -->
+        <ol class="mt-4 flex flex-col gap-4">
+          <li v-for="(step, i) in howSteps" :key="step" class="flex items-start gap-3.5">
+            <span
+              class="eyebrow flex size-6.5 shrink-0 items-center justify-center rounded-full border border-(--color-line) text-[0.62rem] text-(--color-signal-text)"
+            >
+              {{ i + 1 }}
+            </span>
+            <p class="text-[13.5px] leading-relaxed">{{ step }}</p>
+          </li>
+        </ol>
+      </section>
     </div>
 
-    <!-- Rentila -->
-    <section class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-      <div class="flex items-center justify-between">
-        <p class="eyebrow">{{ t('dash.rentila') }}</p>
-        <span v-if="org?.rentila.connected" class="text-sm text-(--color-ok-text)">{{ t('dash.connected') }}</span>
+    <!-- Comptes reliés -->
+    <div v-else class="grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <article
+        v-if="org?.enablebanking.connected"
+        class="flex flex-col gap-3.5 rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-6"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <p class="display text-[17px]">{{ org.enablebanking.aspspName }}</p>
+          <StatusPill tone="ok" :label="t('dash.connected')" />
+        </div>
+
+        <div>
+          <p class="eyebrow text-[0.6rem]">{{ t('banque.accounts') }}</p>
+          <p class="mt-1 font-mono text-[1.35rem]">{{ org.enablebanking.accountCount }}</p>
+        </div>
+
+        <p class="eyebrow text-[0.62rem] normal-case">
+          {{ t('banque.lastSync') }}
+          {{ org.enablebanking.lastPolledAt ? relative(org.enablebanking.lastPolledAt) : t('sync.never') }}
+        </p>
+        <p v-if="org.enablebanking.validUntil" class="eyebrow text-[0.62rem] normal-case">
+          {{ t('banque.consentUntil') }} {{ fullDate(org.enablebanking.validUntil) }}
+        </p>
+
+        <button
+          type="button"
+          :disabled="ebSyncing"
+          class="eyebrow mt-auto self-start rounded-md border border-(--color-line) px-4 py-2 text-[0.62rem] transition-colors hover:border-(--color-cobalt) disabled:opacity-50"
+          @click="syncEnableBanking"
+        >
+          {{ ebSyncing ? t('int.syncing') : t('int.syncNow') }}
+        </button>
+        <p v-if="ebError" class="text-sm text-(--color-danger-text)">{{ ebError }}</p>
+      </article>
+
+      <article
+        v-if="org?.bridge.connected"
+        class="flex flex-col gap-3.5 rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-6"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <p class="display text-[17px]">{{ t('banque.otherAccount') }}</p>
+          <StatusPill tone="ok" :label="t('dash.connected')" />
+        </div>
+        <p class="text-sm leading-relaxed text-(--color-fg-soft)">{{ t('int.b.linked') }}</p>
+      </article>
+
+      <button
+        v-if="!org?.enablebanking.connected"
+        type="button"
+        class="flex flex-col items-start justify-center gap-2.5 rounded-lg border border-dashed border-(--color-line-strong) p-6 text-left transition-colors hover:border-(--color-cobalt)"
+        @click="pickerOpen = !pickerOpen"
+      >
+        <span class="font-mono text-lg text-(--color-cobalt)">+</span>
+        <span class="display text-base">{{ t('banque.connectCta') }}</span>
+        <span class="eyebrow text-[0.62rem] leading-relaxed normal-case">{{ t('banque.connectDesc') }}</span>
+      </button>
+    </div>
+
+    <!-- Sélecteur de banque, déplié depuis la tuile « + » -->
+    <section
+      v-if="hasBank && pickerOpen && !org?.enablebanking.connected"
+      class="max-w-md rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-6"
+    >
+      <form class="flex flex-col gap-3" @submit.prevent="connectEnableBanking">
+        <label class="flex flex-col gap-1.5 text-sm">
+          <span class="eyebrow text-[0.6rem]">{{ t('int.eb.bank') }}</span>
+          <select v-model="ebSelectedAspsp" required class="rounded-md border border-(--color-line) px-3 py-2.5 text-sm">
+            <option value="" disabled>{{ ebAspsps.length ? t('int.eb.choose') : t('int.eb.loading') }}</option>
+            <option v-for="a in ebAspsps" :key="a.name" :value="a.name">{{ a.name }}</option>
+          </select>
+        </label>
+        <p v-if="ebError" class="text-sm text-(--color-danger-text)">{{ ebError }}</p>
+        <button
+          type="submit"
+          :disabled="ebConnecting || !ebSelectedAspsp"
+          class="self-start rounded-md bg-(--color-cobalt) px-5 py-3 text-sm font-bold text-(--color-on-cobalt) disabled:opacity-50"
+        >
+          {{ ebConnecting ? t('int.redirecting') : t('banque.connectCta') }}
+        </button>
+      </form>
+    </section>
+
+    <!-- Rentila : la source des loyers attendus, pas une banque. -->
+    <section class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 class="eyebrow text-[0.68rem]">{{ t('dash.rentila') }}</h2>
+        <StatusPill v-if="org?.rentila.connected" tone="ok" :label="t('dash.connected')" />
       </div>
 
       <template v-if="org?.rentila.connected">
-        <p class="mt-2 text-sm text-(--color-fg-soft)">
+        <p class="mt-3 text-sm leading-relaxed text-(--color-fg-soft)">
           {{ t('int.r.linked').replace('{id}', String(org.rentila.landlordId)) }}
         </p>
         <button
+          type="button"
           :disabled="syncing"
-          class="mt-3 rounded border border-(--color-line) px-4 py-2 text-sm disabled:opacity-50"
+          class="eyebrow mt-4 rounded-md border border-(--color-line) px-4 py-2 text-[0.62rem] transition-colors hover:border-(--color-cobalt) disabled:opacity-50"
           @click="syncRentila"
         >
           {{ syncing ? t('int.syncing') : t('int.syncNow') }}
@@ -143,13 +280,9 @@ async function syncEnableBanking() {
       </template>
 
       <template v-else>
-        <p class="mt-2 text-sm text-(--color-fg-soft)">
-          {{ t('int.r.noRedirect') }}
-        </p>
-        <div class="mt-3 rounded border border-(--color-signal-text)/40 bg-(--color-signal-text)/10 p-3 text-sm">
-          <p class="text-(--color-fg)">
-            <strong>{{ t('int.r.warnTitle') }}</strong> {{ t('int.r.warnBody') }}
-          </p>
+        <p class="mt-3 text-sm leading-relaxed text-(--color-fg-soft)">{{ t('int.r.noRedirect') }}</p>
+        <div class="mt-4 rounded-md border border-(--color-signal-text)/40 bg-(--color-signal-text)/10 p-3.5 text-sm">
+          <p><strong>{{ t('int.r.warnTitle') }}</strong> {{ t('int.r.warnBody') }}</p>
           <a
             href="https://www.rentila.com/landlord/#profile/apiclient"
             target="_blank"
@@ -167,13 +300,9 @@ async function syncEnableBanking() {
           user's actual Rentila account credentials here — reinforcing the
           "this is a login" mistake we're trying to prevent above.
         -->
-        <form
-          class="mt-4 flex flex-col gap-3 sm:max-w-sm"
-          autocomplete="off"
-          @submit.prevent="connectRentila"
-        >
-          <label class="flex flex-col gap-1 text-sm">
-            <span class="text-(--color-fg-soft)">{{ t('int.r.clientId') }}</span>
+        <form class="mt-4 flex max-w-sm flex-col gap-3" autocomplete="off" @submit.prevent="connectRentila">
+          <label class="flex flex-col gap-1.5 text-sm">
+            <span class="eyebrow text-[0.6rem]">{{ t('int.r.clientId') }}</span>
             <input
               v-model="rentilaClientId"
               name="rentila-client-id"
@@ -181,11 +310,11 @@ async function syncEnableBanking() {
               required
               autocomplete="off"
               :placeholder="t('int.r.phId')"
-              class="rounded border border-(--color-line) px-3 py-2 text-sm"
+              class="rounded-md border border-(--color-line) px-3 py-2.5 text-sm"
             >
           </label>
-          <label class="flex flex-col gap-1 text-sm">
-            <span class="text-(--color-fg-soft)">{{ t('int.r.clientSecret') }}</span>
+          <label class="flex flex-col gap-1.5 text-sm">
+            <span class="eyebrow text-[0.6rem]">{{ t('int.r.clientSecret') }}</span>
             <input
               v-model="rentilaClientSecret"
               name="rentila-client-secret"
@@ -193,99 +322,20 @@ async function syncEnableBanking() {
               required
               autocomplete="off"
               :placeholder="t('int.r.phSecret')"
-              class="rounded border border-(--color-line) px-3 py-2 text-sm"
+              class="rounded-md border border-(--color-line) px-3 py-2.5 text-sm"
             >
           </label>
-          <p class="text-xs text-(--color-fg-soft)">{{ t('int.r.stored') }}</p>
+          <p class="eyebrow text-[0.6rem] normal-case">{{ t('int.r.stored') }}</p>
           <p v-if="rentilaError" class="text-sm text-(--color-danger-text)">
             {{ rentilaError }}
-            <template v-if="rentilaError.includes('client ID/secret')">
-              {{ t('int.r.hint') }}
-            </template>
+            <template v-if="rentilaError.includes('client ID/secret')">{{ t('int.r.hint') }}</template>
           </p>
           <button
             type="submit"
             :disabled="rentilaConnecting"
-            class="rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
+            class="self-start rounded-md bg-(--color-cobalt) px-5 py-3 text-sm font-bold text-(--color-on-cobalt) disabled:opacity-50"
           >
             {{ rentilaConnecting ? t('int.connecting') : t('int.r.connect') }}
-          </button>
-        </form>
-      </template>
-    </section>
-
-    <!-- Bridge / bank -->
-    <section class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-      <div class="flex items-center justify-between">
-        <p class="eyebrow">{{ t('dash.bankAccount') }}</p>
-        <span v-if="org?.bridge.connected" class="text-sm text-(--color-ok-text)">{{ t('dash.connected') }}</span>
-      </div>
-
-      <template v-if="org?.bridge.connected">
-        <p class="mt-2 text-sm text-(--color-fg-soft)">
-          {{ t('int.b.linked') }}
-        </p>
-      </template>
-      <template v-else>
-        <p class="mt-2 text-sm text-(--color-fg-soft)">
-          {{ t('int.b.body') }}
-        </p>
-        <button
-          :disabled="bridgeConnecting"
-          class="mt-3 rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
-          @click="connectBank"
-        >
-          {{ bridgeConnecting ? t('int.redirecting') : t('int.b.connect') }}
-        </button>
-      </template>
-    </section>
-
-    <!-- Enable Banking / bank (fast, no-KYB stopgap) -->
-    <section class="rounded-lg border border-(--color-line) bg-(--color-bg-raised) p-5">
-      <div class="flex items-center justify-between">
-        <p class="eyebrow">{{ t('int.eb.label') }}</p>
-        <span v-if="org?.enablebanking.connected" class="text-sm text-(--color-ok-text)">{{ t('dash.connected') }}</span>
-      </div>
-
-      <template v-if="org?.enablebanking.connected">
-        <p class="mt-2 text-sm text-(--color-fg-soft)">
-          {{ t('int.eb.linked').replace('{bank}', org.enablebanking.aspspName ?? '') }}
-        </p>
-        <button
-          :disabled="ebSyncing"
-          class="mt-3 rounded border border-(--color-line) px-4 py-2 text-sm disabled:opacity-50"
-          @click="syncEnableBanking"
-        >
-          {{ ebSyncing ? t('int.syncing') : t('int.syncNow') }}
-        </button>
-        <p v-if="ebError" class="mt-2 text-sm text-(--color-danger-text)">{{ ebError }}</p>
-      </template>
-      <template v-else>
-        <p class="mt-2 text-sm text-(--color-fg-soft)">
-          {{ t('int.eb.body') }}
-        </p>
-        <div class="mt-3 rounded border border-(--color-signal-text)/40 bg-(--color-signal-text)/10 p-3 text-sm text-(--color-fg)">
-          {{ t('int.eb.restricted') }}
-        </div>
-        <form class="mt-4 flex flex-col gap-3 sm:max-w-sm" @submit.prevent="connectEnableBanking">
-          <label class="flex flex-col gap-1 text-sm">
-            <span class="text-(--color-fg-soft)">{{ t('int.eb.bank') }}</span>
-            <select
-              v-model="ebSelectedAspsp"
-              required
-              class="rounded border border-(--color-line) bg-(--color-bg-raised) px-3 py-2 text-sm"
-            >
-              <option value="" disabled>{{ ebAspsps.length ? t('int.eb.choose') : t('int.eb.loading') }}</option>
-              <option v-for="a in ebAspsps" :key="a.name" :value="a.name">{{ a.name }}</option>
-            </select>
-          </label>
-          <p v-if="ebError" class="text-sm text-(--color-danger-text)">{{ ebError }}</p>
-          <button
-            type="submit"
-            :disabled="ebConnecting || !ebSelectedAspsp"
-            class="rounded bg-(--color-cobalt) px-4 py-2 text-sm font-medium text-(--color-on-cobalt) disabled:opacity-50"
-          >
-            {{ ebConnecting ? t('int.redirecting') : t('int.b.connect') }}
           </button>
         </form>
       </template>

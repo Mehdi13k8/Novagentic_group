@@ -1,5 +1,6 @@
 import { requireOrgForUser } from '../utils/org'
 import { BankTransaction } from '../models/BankTransaction'
+import { Match } from '../models/Match'
 import '../models/Payment'
 import '../models/Property'
 import '../models/Tenant'
@@ -46,6 +47,18 @@ export default defineEventHandler(async (event) => {
   const ALERT_WINDOW_MS = 1000 * 60 * 60 * 24 // 24h
   let newMatchesCount = 0
 
+  // How each link came about — 'exact'/'partial' are the automated matcher's
+  // own levels, 'manual' is a landlord override (see models/Match.ts). The
+  // Rapprochement screen groups its tabs on exactly this distinction, so it
+  // has to come from the audit trail rather than being guessed from the data.
+  const matches = await Match.find({
+    orgId: org._id,
+    bankTransactionId: { $in: transactions.map((tx) => tx._id) },
+  })
+    .select('bankTransactionId confidence')
+    .lean()
+  const confidenceByTx = new Map(matches.map((m) => [String(m.bankTransactionId), m.confidence]))
+
   const items = transactions.map((tx) => {
     const payment = tx.matchedPaymentId as unknown as PopulatedPayment | undefined
     const matchedRecently = Boolean(payment) && Date.now() - tx.updatedAt.getTime() < ALERT_WINDOW_MS
@@ -59,6 +72,7 @@ export default defineEventHandler(async (event) => {
       currencyCode: tx.currencyCode,
       description: tx.description,
       matchedRecently,
+      confidence: payment ? (confidenceByTx.get(tx._id.toString()) ?? null) : null,
       match: payment
         ? {
             paymentId: payment._id.toString(),
