@@ -56,7 +56,10 @@ export default defineEventHandler(async (event) => {
   // 90 days, not the sweep's default 7: this is the one moment we can pull
   // history from before the consent existed, and the sweep never looks back
   // that far again. Whatever the bank caps it at is what we get.
-  await syncOrgEnableBankingTransactions(org, { days: 90 }).catch(() => null)
+  // force: a landlord who just re-authorised at their bank must not be told
+  // to wait 15 minutes because of a poll that happened before the consent.
+  // Completing SCA is deliberate and infrequent, so it can't be spammed.
+  await syncOrgEnableBankingTransactions(org, { days: 90, force: true }).catch(() => null)
 
   return sendRedirect(event, '/dashboard/integrations?bank=connected')
 })

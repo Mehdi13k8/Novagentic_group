@@ -24,6 +24,11 @@ export interface OrganizationDoc {
     aspspCountry?: string
     accountUids?: string[] // the linked account(s) this session grants access to
     validUntil?: Date // consent expiry — bank-set, may be shorter than requested
+    // Last time we actually called the bank for this org — set on every
+    // attempt, including ones the bank rejected, so a 429 doesn't reset the
+    // spacing and invite an immediate retry. See MIN_POLL_INTERVAL_MS in
+    // server/utils/reconcile.ts.
+    lastPolledAt?: Date
   }
   stripe: {
     customerId?: string
@@ -59,6 +64,7 @@ const organizationSchema = new Schema<OrganizationDoc>(
       aspspCountry: { type: String },
       accountUids: [{ type: String }],
       validUntil: { type: Date },
+      lastPolledAt: { type: Date },
     },
     stripe: {
       customerId: { type: String },

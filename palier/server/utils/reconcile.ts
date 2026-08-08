@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto'
 import type { HydratedDocument, Types } from 'mongoose'
 import { Payment, type PaymentDoc } from '../models/Payment'
 import { BankTransaction, type BankTransactionDoc } from '../models/BankTransaction'
+import { StagedBankTransaction } from '../models/StagedBankTransaction'
 import { Match, type MatchConfidence } from '../models/Match'
 import type { OrganizationDoc } from '../models/Organization'
 import { createBridgeClient, type BridgeTransaction } from './bridge'
@@ -45,8 +47,14 @@ export async function ingestEnableBankingTransaction(orgId: Types.ObjectId, acco
   const externalId = tx.transaction_id ?? tx.entry_reference
   if (!externalId) return null // no stable id to dedupe on — skip rather than risk a duplicate ingest
 
-  console.log(`[enablebanking] ingesting transaction ${externalId} for org=${orgId} account=${accountUid}`);
-  console.log(JSON.stringify(tx, null, 2));
+  // Deliberately not logged here: this function sees the full raw provider
+  // payload — counterparty names, IBANs, labels, balances. On Azure that
+  // goes straight to the Web App's log stream, which every container on the
+  // shared App Service can read, so a per-transaction dump put real
+  // financial data somewhere it has no business being. The per-page count
+  // in syncOrgEnableBankingTransactions is enough to see a sync working;
+  // for record-level detail use `npm run virements`, which reads from the
+  // provider on demand instead of leaving a copy in the logs.
 
   // tryMatch()'s `tx.amount <= 0` credit-check below depends on getting the
   // sign right — confirmed 2026-08-07 against real CEPAC data: amount comes
@@ -291,11 +299,50 @@ export async function syncOrgTransactions(org: HydratedDocument<OrganizationDoc>
  * just a sweep backstop, so callers should run it right after connect too
  * (see server/api/enablebanking/callback.get.ts), not only on the schedule.
  */
+/**
+ * Minimum spacing between two calls to the bank for the same org.
+ *
+ * This is OUR limit, not the bank's. The ASPSP's own PSD2 cap is a daily
+ * allowance, and nothing here can raise it — the point of this guard is to
+ * stop a human holding down "Sync now" from spending that whole allowance
+ * in a minute, which is exactly how the 429 got tripped during development.
+ * It does not prevent a genuinely busy day from exhausting the allowance.
+ *
+ * The scheduled sweep runs every 30 min, so it never trips this.
+ */
+const MIN_POLL_INTERVAL_MS = 15 * 60 * 1000
+
+export interface EnableBankingSyncResult {
+  rateLimited: boolean // the BANK refused (429)
+  throttled?: boolean // WE refused — too soon since the last attempt
+  retryAfterSeconds?: number // only set when throttled
+  processed?: number // staged rows turned into BankTransactions this run
+  failed?: number // staged rows that could not be normalised (kept, with a reason)
+}
+
 export async function syncOrgEnableBankingTransactions(
   org: HydratedDocument<OrganizationDoc>,
-  { days = 7 }: { days?: number } = {},
-): Promise<{ rateLimited: boolean }> {
+  { days = 7, force = false }: { days?: number; force?: boolean } = {},
+): Promise<EnableBankingSyncResult> {
   if (!org.enablebanking.sessionId || !org.enablebanking.accountUids?.length) return { rateLimited: false }
+
+  const lastPolledAt = org.enablebanking.lastPolledAt?.getTime()
+  if (!force && lastPolledAt !== undefined) {
+    const elapsed = Date.now() - lastPolledAt
+    if (elapsed < MIN_POLL_INTERVAL_MS) {
+      return {
+        rateLimited: false,
+        throttled: true,
+        retryAfterSeconds: Math.ceil((MIN_POLL_INTERVAL_MS - elapsed) / 1000),
+      }
+    }
+  }
+
+  // Stamped before the first request, not after a successful one: an attempt
+  // the bank rejected still consumed part of its daily allowance, so it has
+  // to count toward the spacing too.
+  org.enablebanking.lastPolledAt = new Date()
+  await org.save()
 
   const config = useRuntimeConfig()
   const client = createEnableBankingClient(enableBankingCredentialsFromConfig(config))
@@ -333,24 +380,135 @@ export async function syncOrgEnableBankingTransactions(
         throw err
       }
 
-      // Prints the exact response Enable Banking just returned, live, the
-      // moment each page comes back — requested explicitly for watching
-      // real syncs in the `npm run dev` terminal, not just inspecting
-      // already-stored data after the fact.
+      // Count only. The full page body used to be dumped here for watching
+      // real syncs in the `npm run dev` terminal, but this same code runs in
+      // production, where the log stream is shared across every container on
+      // the Web App — see the note in ingestEnableBankingTransaction.
       // eslint-disable-next-line no-console
       console.log(
         `[enablebanking] account=${accountUid} page: ${page.transactions.length} transaction(s)` +
           (page.continuation_key ? ' (more pages follow)' : ''),
       )
-      // eslint-disable-next-line no-console
-      console.log(JSON.stringify(page, null, 2))
 
-      for (const tx of page.transactions) {
-        await ingestEnableBankingTransaction(org._id, accountUid, tx)
-      }
+      await stageEnableBankingPage(org._id, accountUid, page.transactions)
       continuationKey = page.continuation_key
     } while (continuationKey)
   }
 
-  return { rateLimited: false }
+  const { processed, failed } = await processStagedEnableBankingTransactions(org)
+  return { rateLimited: false, processed, failed }
+}
+
+/**
+ * Writes one page of provider payloads into the staging collection, exactly
+ * as received. Deliberately does no normalisation and no matching: the whole
+ * point of the landing zone is that a bug in either of those can be fixed
+ * and replayed without spending the bank's scarce daily poll allowance
+ * again. See server/models/StagedBankTransaction.ts.
+ */
+async function stageEnableBankingPage(
+  orgId: Types.ObjectId,
+  accountUid: string,
+  transactions: EnableBankingTransaction[],
+) {
+  const fetchedAt = new Date()
+  // Occurrence counter per content hash, for the payloads the provider gave
+  // no id — see the `fingerprint` note on the model for why a bare hash is
+  // not enough.
+  const seen = new Map<string, number>()
+
+  for (const tx of transactions) {
+    const externalId = tx.transaction_id ?? tx.entry_reference
+    let fingerprint: string
+
+    if (externalId) {
+      fingerprint = externalId
+    } else {
+      const basis = JSON.stringify([
+        tx.booking_date,
+        tx.transaction_amount?.amount,
+        tx.transaction_amount?.currency,
+        tx.credit_debit_indicator,
+        tx.remittance_information,
+        tx.status,
+      ])
+      const hash = createHash('sha256').update(basis).digest('hex').slice(0, 32)
+      const n = seen.get(hash) ?? 0
+      seen.set(hash, n + 1)
+      fingerprint = `sha:${hash}:${n}`
+    }
+
+    await StagedBankTransaction.findOneAndUpdate(
+      { provider: 'enablebanking', orgId, fingerprint },
+      {
+        $setOnInsert: {
+          provider: 'enablebanking',
+          orgId,
+          accountRef: accountUid,
+          externalId,
+          fingerprint,
+          fetchedAt,
+        },
+        // Refreshed on every landing: a transaction can legitimately change
+        // upstream (PDNG settling to BOOK, an amended amount), and staging
+        // must hold what the bank currently says, not only first contact.
+        // Clearing processedAt re-queues it so the change reaches
+        // BankTransaction instead of being masked by the earlier version.
+        $set: { raw: tx, processedAt: undefined, processedError: undefined },
+      },
+      { upsert: true },
+    )
+  }
+}
+
+/**
+ * Staging -> BankTransaction. Normalises and matches, and never touches the
+ * bank — which is what makes it safe to run on a user's click as often as
+ * they like, and what makes replay possible after a normalisation fix.
+ */
+export async function processStagedEnableBankingTransactions(
+  org: HydratedDocument<OrganizationDoc>,
+  { replay = false }: { replay?: boolean } = {},
+): Promise<{ processed: number; failed: number }> {
+  const rows = await StagedBankTransaction.find({
+    orgId: org._id,
+    provider: 'enablebanking',
+    ...(replay ? {} : { processedAt: { $exists: false } }),
+  }).sort({ fetchedAt: 1 })
+
+  let processed = 0
+  let failed = 0
+
+  for (const row of rows) {
+    try {
+      const doc = await ingestEnableBankingTransaction(
+        org._id,
+        row.accountRef,
+        row.raw as unknown as EnableBankingTransaction,
+      )
+      row.processedAt = new Date()
+      if (doc) {
+        row.processedError = undefined
+        processed += 1
+      } else {
+        // ingest refuses payloads with no transaction_id/entry_reference —
+        // it has no key to dedupe on. Before staging existed this was a
+        // silent `return null` and the transaction was simply gone. It is
+        // now retained here with the reason attached, so "the bank sent us
+        // money we can't file" is a question someone can actually answer.
+        row.processedError = 'no transaction_id/entry_reference — cannot dedupe into BankTransaction'
+        failed += 1
+      }
+    } catch (err) {
+      // One malformed payload must not stall every row behind it. Recorded
+      // on the row so it is findable later rather than only in a log line.
+      row.processedError = err instanceof Error ? err.message : String(err)
+      failed += 1
+      // eslint-disable-next-line no-console
+      console.error(`[enablebanking] staging row ${row.fingerprint} failed to process:`, err)
+    }
+    await row.save()
+  }
+
+  return { processed, failed }
 }

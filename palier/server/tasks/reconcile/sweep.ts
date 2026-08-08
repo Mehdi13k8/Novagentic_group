@@ -41,6 +41,14 @@ export default defineTask({
             // eslint-disable-next-line no-console
             console.log(`[reconcile:sweep] org=${org._id} ${label} rate-limited by the bank, skipped this round`)
           }
+          // The sweep's own 30-min cadence clears MIN_POLL_INTERVAL_MS, so
+          // this only fires when a manual "Sync now" landed in the last 15
+          // min — the data is already fresh. Logged rather than silent so a
+          // skipped round is never mistaken for a broken sweep.
+          if (result && 'throttled' in result && result.throttled) {
+            // eslint-disable-next-line no-console
+            console.log(`[reconcile:sweep] org=${org._id} ${label} polled recently, skipped this round`)
+          }
         } catch (err) {
           failures += 1
           // eslint-disable-next-line no-console
